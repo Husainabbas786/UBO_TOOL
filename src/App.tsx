@@ -1,4 +1,96 @@
+import { useEffect, useMemo, useState } from 'react'
+import {
+  buildGraph,
+  calculate,
+  companyTotals,
+  DEFAULT_THRESHOLD,
+  defaultTargetKey,
+  TOTAL_TOLERANCE,
+  validate,
+  type CalculationResult,
+  type ValidationIssue,
+} from './engine'
+import { blankRow, exampleRows, isRowDirty, type LinkRowState } from './lib/rows'
+import { Blockers } from './components/Blockers'
+import { LinksBuilder } from './components/LinksBuilder'
+import { TargetSelect } from './components/TargetSelect'
+import { ThresholdSelect } from './components/ThresholdSelect'
+import { Button, Card } from './components/ui'
+
 export default function App() {
+  const [rows, setRows] = useState<LinkRowState[]>(() => [blankRow()])
+  const [threshold, setThreshold] = useState<number>(DEFAULT_THRESHOLD)
+  const [chosenTargetKey, setChosenTargetKey] = useState<string | null>(null)
+  const [result, setResult] = useState<CalculationResult | null>(null)
+  const [engineError, setEngineError] = useState<string | null>(null)
+
+  const graph = useMemo(() => buildGraph(rows), [rows])
+  const validation = useMemo(() => validate(rows, graph), [rows, graph])
+  const totals = useMemo(() => companyTotals(graph), [graph])
+
+  // The user's choice holds only while it is still a candidate; an edit that
+  // removes it falls back to the auto-detected target.
+  const targetKey =
+    chosenTargetKey && graph.targetCandidates.some((c) => c.key === chosenTargetKey)
+      ? chosenTargetKey
+      : defaultTargetKey(graph)
+
+  // A stale result is worse than no result, so any edit clears it.
+  useEffect(() => {
+    setResult(null)
+    setEngineError(null)
+  }, [rows, threshold, targetKey])
+
+  const anyRowDirty = rows.some(isRowDirty)
+  const incompleteRowIds = new Set(rows.filter((row) => !isRowDirty(row)).map((row) => row.id))
+
+  const issuesByRow = new Map<string, ValidationIssue[]>()
+  for (const issue of validation.errors) {
+    if (!issue.linkId || incompleteRowIds.has(issue.linkId)) continue
+    const existing = issuesByRow.get(issue.linkId)
+    if (existing) existing.push(issue)
+    else issuesByRow.set(issue.linkId, [issue])
+  }
+
+  const partyIssues = validation.errors.filter(
+    (issue) => issue.nodeKey !== undefined && issue.code !== 'totals-not-100',
+  )
+
+  const totalsWithStatus = totals.map((company) => ({
+    ...company,
+    ok: Math.abs(company.total - 100) <= TOTAL_TOLERANCE + 1e-9,
+  }))
+
+  const reasons = anyRowDirty ? blockingReasons(validation.errors, rows, incompleteRowIds) : []
+  const canCalculate = validation.ok && targetKey !== null
+
+  const handleCalculate = () => {
+    if (!targetKey) return
+    try {
+      setResult(calculate(rows, { targetKey, threshold }))
+      setEngineError(null)
+    } catch (error) {
+      setResult(null)
+      setEngineError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  const handleStartOver = () => {
+    setRows([blankRow()])
+    setThreshold(DEFAULT_THRESHOLD)
+    setChosenTargetKey(null)
+    setResult(null)
+    setEngineError(null)
+  }
+
+  const handleLoadExample = () => {
+    setRows(exampleRows())
+    setThreshold(DEFAULT_THRESHOLD)
+    setChosenTargetKey(null)
+    setResult(null)
+    setEngineError(null)
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -8,10 +100,74 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-          Placeholder — scaffold only. Engine and UI arrive in the next milestones.
+      <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+        <Card
+          title="Ownership Links"
+          description="One row per shareholding: who owns what percentage of which company."
+        >
+          <LinksBuilder
+            rows={rows}
+            issuesByRow={issuesByRow}
+            incompleteRowIds={anyRowDirty ? incompleteRowIds : new Set<string>()}
+            companyTotals={totalsWithStatus}
+            partyIssues={partyIssues}
+            onChangeRow={(updated) =>
+              setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+            }
+            onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
+            onAddRow={() => setRows((current) => [...current, blankRow()])}
+          />
+        </Card>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card title="Threshold">
+            <ThresholdSelect value={threshold} onChange={setThreshold} />
+          </Card>
+          <Card title="Target Entity">
+            <TargetSelect
+              candidates={graph.targetCandidates}
+              value={targetKey}
+              onChange={setChosenTargetKey}
+            />
+          </Card>
         </div>
+
+        <Card title="Calculate">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" disabled={!canCalculate} onClick={handleCalculate}>
+                Calculate Ownership
+              </Button>
+              <Button onClick={handleLoadExample}>Load example</Button>
+              <Button variant="ghost" onClick={handleStartOver}>
+                Start Over
+              </Button>
+            </div>
+
+            {!anyRowDirty ? (
+              <p className="text-sm text-slate-500">
+                Enter at least one ownership link, or load the example structure to see how it
+                works.
+              </p>
+            ) : null}
+
+            <Blockers reasons={reasons} warnings={validation.warnings.map((w) => w.message)} />
+
+            {engineError ? (
+              <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {engineError}
+              </div>
+            ) : null}
+
+            {result ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                Calculated {result.target.name} at the {result.threshold}% threshold —{' '}
+                {result.entityCount} entities, {result.pathCount} ownership paths. The chart, paths
+                table, summary and intermediary blocks arrive in the next milestone.
+              </div>
+            ) : null}
+          </div>
+        </Card>
       </main>
 
       <footer className="mx-auto max-w-5xl px-6 pb-10 text-xs text-slate-500">
@@ -19,4 +175,37 @@ export default function App() {
       </footer>
     </div>
   )
+}
+
+/**
+ * Turns validation errors into the list shown under a disabled Calculate button:
+ * row errors get a row number, an untouched row collapses to one neutral line,
+ * and duplicate messages are shown once.
+ */
+function blockingReasons(
+  errors: ValidationIssue[],
+  rows: LinkRowState[],
+  incompleteRowIds: Set<string>,
+): string[] {
+  const reasons: string[] = []
+  const seen = new Set<string>()
+
+  const add = (text: string) => {
+    if (seen.has(text)) return
+    seen.add(text)
+    reasons.push(text)
+  }
+
+  for (const issue of errors) {
+    if (!issue.linkId) {
+      add(issue.message)
+      continue
+    }
+    const index = rows.findIndex((row) => row.id === issue.linkId)
+    const label = index >= 0 ? `Row ${index + 1}` : 'A row'
+    if (incompleteRowIds.has(issue.linkId)) add(`${label}: complete this row or remove it.`)
+    else add(`${label}: ${issue.message}`)
+  }
+
+  return reasons
 }

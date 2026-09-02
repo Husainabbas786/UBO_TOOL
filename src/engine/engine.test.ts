@@ -365,3 +365,34 @@ describe('deeper structures', () => {
     )
   })
 })
+
+describe('aggregation never duplicates an owner', () => {
+  it('merges an owner reached by several paths into one entry', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 25, 'ABC LTD'),
+      link('2', 'XYZ Ltd', 'company', 75, 'ABC LTD'),
+      link('3', 'Husain', 'individual', 45, 'XYZ Ltd'),
+      link('4', 'Dinesh', 'individual', 45, 'XYZ Ltd'),
+      link('5', 'Masood', 'individual', 10, 'XYZ Ltd'),
+    ]
+    const result = run(links)
+    const keys = result.ubos.map((u) => u.key)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(result.ubos.filter((u) => u.key === 'masood')).toHaveLength(1)
+    expect(result.owners.map((o) => o.key)).toEqual([...new Set(result.owners.map((o) => o.key))])
+    // Masood reaches the target twice but appears once, with both paths summed.
+    expect(result.paths.filter((p) => p.ownerKey === 'masood')).toHaveLength(2)
+  })
+
+  it('does not re-add a controller who is already an ultimate owner', () => {
+    const links = [
+      link('1', 'Nadia', 'individual', 50, 'ABC LTD', true),
+      link('2', 'XYZ Ltd', 'company', 50, 'ABC LTD'),
+      link('3', 'Nadia', 'individual', 100, 'XYZ Ltd', true),
+    ]
+    const result = run(links)
+    expect(result.ubos.filter((u) => u.key === 'nadia')).toHaveLength(1)
+    expect(result.ubos[0]?.totalPercent).toBe(100)
+    expect(result.ubos[0]?.basis).toBe('Ownership + Control')
+  })
+})
