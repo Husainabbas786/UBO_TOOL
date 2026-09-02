@@ -93,6 +93,11 @@ export const font = {
 
 /** Type scale from BRAND.md, with the on-screen legibility adjustments it allows. */
 export const typeScale = {
+  /** The masthead sits slightly under H1 so the logo leads the composition. */
+  masthead: { size: '34px', lineHeight: '38px', weight: 600, tracking: '-0.01em' },
+  mastheadSub: { size: '15px', lineHeight: '20px', weight: 500, tracking: '0' },
+  /** Card titles, a step up from H3 so sections read at a glance. */
+  cardTitle: { size: '20px', lineHeight: '26px', weight: 600, tracking: '0' },
   h1: { size: '36px', lineHeight: '38px', weight: 600, tracking: '-0.01em' },
   h2: { size: '24px', lineHeight: '28px', weight: 600, tracking: '-0.01em' },
   h3: { size: '18px', lineHeight: '21px', weight: 600, tracking: '0' },
@@ -115,6 +120,19 @@ export const table = {
 } as const
 
 /**
+ * Page geometry. The input column stays comfortable to read across, while the
+ * results run wider so a deep ownership chart has somewhere to go.
+ */
+export const layout = {
+  pageWidth: '1320px',
+  resultsWidth: '1440px',
+  headerHeight: '104px',
+  logoHeight: '64px',
+  /** Below this the ownership row is allowed to wrap onto a second line. */
+  rowNoWrapFrom: '1100px',
+} as const
+
+/**
  * Chart colours. These are written straight into the SVG as hex so that an
  * exported PNG or PDF renders identically to the screen — never CSS variables.
  */
@@ -129,8 +147,11 @@ export const chart = {
   surface: '#FFFFFF',
 } as const
 
-/** The one decorative moment: concentric rings behind the header title. */
+/**
+ * The one decorative moment: concentric rings in the header band. Held at 10%
+ * so it reads as texture behind the masthead rather than as a second element.
+ */
 export const pattern = {
   ring: accent.steelBlue,
-  opacity: 0.15,
+  opacity: 0.1,
 } as const

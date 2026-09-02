@@ -2,6 +2,7 @@ import type { Config } from 'tailwindcss'
 import {
   accent,
   brand,
+  layout,
   neutral,
   radius,
   state,
@@ -14,6 +15,14 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      screens: {
+        // The ownership row stops wrapping from here up.
+        wide: layout.rowNoWrapFrom,
+      },
+      maxWidth: {
+        page: layout.pageWidth,
+        results: layout.resultsWidth,
+      },
       colors: {
         mfzBlue: { DEFAULT: brand.mfzBlue, ...tints(brand.mfzBlue) },
         mfzGreen: { DEFAULT: brand.mfzGreen, ...tints(brand.mfzGreen) },
@@ -41,6 +50,15 @@ export default {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
       },
       fontSize: {
+        masthead: [
+          typeScale.masthead.size,
+          {
+            lineHeight: typeScale.masthead.lineHeight,
+            letterSpacing: typeScale.masthead.tracking,
+          },
+        ],
+        mastheadSub: [typeScale.mastheadSub.size, { lineHeight: typeScale.mastheadSub.lineHeight }],
+        cardTitle: [typeScale.cardTitle.size, { lineHeight: typeScale.cardTitle.lineHeight }],
         h1: [typeScale.h1.size, { lineHeight: typeScale.h1.lineHeight, letterSpacing: typeScale.h1.tracking }],
         h2: [typeScale.h2.size, { lineHeight: typeScale.h2.lineHeight, letterSpacing: typeScale.h2.tracking }],
         h3: [typeScale.h3.size, { lineHeight: typeScale.h3.lineHeight }],
@@ -56,6 +74,8 @@ export default {
       },
       spacing: {
         row: table.rowHeight,
+        header: layout.headerHeight,
+        logo: layout.logoHeight,
       },
     },
   },

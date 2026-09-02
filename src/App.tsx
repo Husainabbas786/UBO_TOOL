@@ -119,7 +119,8 @@ export default function App() {
     <div className="min-h-screen bg-white text-ink">
       <Header />
 
-      <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+      <main className="py-8">
+        <div className="mx-auto max-w-page space-y-8 px-6">
         <Card
           title="Ownership links"
           description="One row per shareholding: who owns what percentage of which company."
@@ -180,13 +181,21 @@ export default function App() {
 
           </div>
         </Card>
+        </div>
 
-        {result ? <ResultsPanel result={result} /> : null}
+        {/* The results run wider than the input column so a deep chart fits. */}
+        {result ? (
+          <div className="mx-auto mt-8 max-w-results px-6">
+            <ResultsPanel result={result} />
+          </div>
+        ) : null}
       </main>
 
-      <footer className="mx-auto max-w-5xl border-t border-line px-6 py-8 text-small text-muted">
-        For internal compliance use only. This tool is informational and does not constitute legal
-        advice.
+      <footer className="mt-4 border-t border-line">
+        <div className="mx-auto max-w-page px-6 py-7 text-small text-muted">
+          For internal compliance use only. This tool is informational and does not constitute legal
+          advice.
+        </div>
       </footer>
     </div>
   )

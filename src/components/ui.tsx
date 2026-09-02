@@ -80,14 +80,14 @@ export function Card({ title, description, children, actions, sectionRef }: {
 }) {
   return (
     <section ref={sectionRef} className="rounded-card border border-line bg-white">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-4">
         <div>
-          <h2 className="text-h3 font-semibold text-mfzBlue">{title}</h2>
+          <h2 className="text-cardTitle font-semibold text-mfzBlue">{title}</h2>
           {description ? <p className="mt-1 text-body text-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </header>
-      <div className="px-6 py-5">{children}</div>
+      <div className="p-6">{children}</div>
     </section>
   )
 }

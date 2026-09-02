@@ -1,23 +1,23 @@
 import { pattern } from '../theme/tokens'
 
 /**
- * Concentric thin rings in steel blue at 15% opacity. This is the one
- * decorative moment in the tool, sitting behind the title band and nowhere else.
+ * Concentric thin rings, anchored to the right edge of the page container and
+ * clipped to the header band. This is the only decoration in the tool.
  */
 function RingPattern() {
-  const rings = [40, 78, 116, 154, 192, 230, 268]
+  const rings = [38, 74, 110, 146, 182, 218, 254]
   return (
     <svg
       aria-hidden
-      className="pointer-events-none absolute -right-24 top-1/2 h-[300px] -translate-y-1/2"
-      width="520"
-      height="320"
-      viewBox="0 0 520 320"
+      className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2"
+      width="460"
+      height="460"
+      viewBox="0 0 460 460"
       fill="none"
     >
       <g opacity={pattern.opacity} stroke={pattern.ring} strokeWidth="1.5" fill="none">
         {rings.map((r) => (
-          <circle key={r} cx="400" cy="160" r={r} />
+          <circle key={r} cx="330" cy="230" r={r} />
         ))}
       </g>
     </svg>
@@ -25,30 +25,33 @@ function RingPattern() {
 }
 
 /**
- * Logo left, title block right.
+ * Logo, rule, title: one masthead rather than three stacked items.
  *
  * The logo is served exactly as supplied and sized only by CSS height, so it is
- * never scaled up and never re-encoded. The "FZ" ring device is about 34px tall
- * at this logo height, and the gap and padding around the lock-up clear that.
+ * only ever scaled down. The rule sits 28px from each neighbour, and the whole
+ * lock-up is vertically centred in the band.
  */
 export function Header() {
   return (
     <header className="border-b border-line bg-white">
-      <div className="relative mx-auto max-w-5xl overflow-hidden px-10 py-10">
-        <RingPattern />
-        <div className="relative flex items-center gap-10">
-          <img
-            src="./brand/mfz-logo.png"
-            alt="Meydan Free Zone"
-            className="h-11 w-auto shrink-0"
-            width={892}
-            height={324}
-            decoding="sync"
-            fetchPriority="high"
-          />
-          <div className="border-l border-line pl-10">
-            <h1 className="text-h1 font-semibold text-mfzBlue">UBO Structuring Tool</h1>
-            <p className="mt-1.5 text-body font-medium text-navy">Compliance Department</p>
+      <div className="mx-auto max-w-page px-6">
+        <div className="relative flex h-header items-center overflow-hidden">
+          <RingPattern />
+          <div className="relative flex items-center gap-7">
+            <img
+              src="./brand/mfz-logo.png"
+              alt="Meydan Free Zone"
+              className="h-logo w-auto shrink-0"
+              width={892}
+              height={324}
+              decoding="sync"
+              fetchPriority="high"
+            />
+            <span className="h-14 w-px shrink-0 bg-line" aria-hidden />
+            <div>
+              <h1 className="text-masthead font-semibold text-mfzBlue">UBO Structuring Tool</h1>
+              <p className="mt-1 text-mastheadSub font-medium text-navy">Compliance Department</p>
+            </div>
           </div>
         </div>
       </div>

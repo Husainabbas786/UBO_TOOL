@@ -45,10 +45,10 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
 
   return (
     <div className="rounded-card border border-line bg-white px-3 py-3">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-        <span className="w-6 shrink-0 text-small font-medium text-muted">{index + 1}</span>
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 wide:flex-nowrap">
+        <span className="w-5 shrink-0 text-small font-medium tabular-nums text-muted">{index + 1}</span>
 
-        <div className="min-w-[7.5rem] flex-1">
+        <div className="min-w-[8rem] flex-1">
           <TextInput
             aria-label={`Owner name, row ${index + 1}`}
             placeholder="Owner name"
@@ -58,11 +58,13 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           />
         </div>
 
-        <TypeToggle value={row.ownerType} onChange={(t) => onChange(withOwnerType(row, t))} />
+        <div className="shrink-0">
+          <TypeToggle value={row.ownerType} onChange={(t) => onChange(withOwnerType(row, t))} />
+        </div>
 
-        <span className="text-body text-muted">owns</span>
+        <span className="shrink-0 text-body text-muted">owns</span>
 
-        <div className="w-20">
+        <div className="w-[4.5rem] shrink-0">
           <TextInput
             aria-label={`Percentage, row ${index + 1}`}
             inputMode="decimal"
@@ -74,9 +76,9 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           />
         </div>
 
-        <span className="text-body text-muted">% of</span>
+        <span className="shrink-0 text-body text-muted">% of</span>
 
-        <div className="min-w-[7.5rem] flex-1">
+        <div className="min-w-[8rem] flex-1">
           <TextInput
             aria-label={`Entity name, row ${index + 1}`}
             placeholder="Company name"
@@ -86,7 +88,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           />
         </div>
 
-        <span className="rounded-pill bg-mfzBlue-t10 px-2.5 py-1 text-small font-medium text-mfzBlue">
+        <span className="shrink-0 rounded-pill bg-mfzBlue-t10 px-2.5 py-1 text-small font-medium text-mfzBlue">
           Company
         </span>
 
@@ -95,7 +97,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
             given a real label and a plain-language hint. */}
         {row.ownerType === 'individual' ? (
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-input border px-2.5 py-1.5 transition-colors ${
+            className={`flex w-[13.25rem] shrink-0 cursor-pointer items-center gap-2 rounded-input border px-2.5 py-1.5 transition-colors ${
               row.ownerIsController
                 ? 'border-purple bg-purple-t10'
                 : 'border-fieldBorder bg-white hover:bg-field'
@@ -109,13 +111,13 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
             />
             <span className="leading-tight">
               <span className="block text-small font-medium text-navy">Controller</span>
-              <span className="block text-[11px] leading-tight text-muted">
+              <span className="block whitespace-nowrap text-[11px] leading-tight text-muted">
                 has control, e.g. voting rights
               </span>
             </span>
           </label>
         ) : (
-          <span className="w-[11.5rem]" aria-hidden />
+          <span className="w-[13.25rem] shrink-0" aria-hidden />
         )}
 
         <Button
@@ -124,14 +126,14 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           title="Remove this link"
           disabled={!canRemove}
           onClick={onRemove}
-          className="px-2.5 py-1 text-base leading-none"
+          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center p-0 text-lg leading-none"
         >
           ×
         </Button>
       </div>
 
       {issues.length > 0 || hint || row.ownerIsController ? (
-        <div className="mt-2 space-y-1 pl-8">
+        <div className="mt-2 space-y-1 pl-[1.875rem]">
           {issues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
