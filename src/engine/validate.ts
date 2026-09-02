@@ -30,7 +30,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
 
   if (links.length > MAX_LINKS) {
     warnings.push({
-      code: 'no-links',
+      code: 'too-many-links',
       message: `${links.length} ownership links entered — above the recommended maximum of ${MAX_LINKS}.`,
     })
   }
@@ -123,7 +123,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
     const direction = total < 100 ? 'missing' : 'over'
     errors.push({
       code: 'totals-not-100',
-      message: `${name}: owners total ${formatPercentShort(total)}% — ${formatPercentShort(gap)}% ${direction}.`,
+      message: `${name}: owners total ${formatPercentShort(total)}% — ${formatPercentShort(gap)}% ${direction}`,
       nodeKey: key,
     })
   }

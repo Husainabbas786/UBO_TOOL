@@ -45,6 +45,7 @@ export interface OwnershipGraph {
 
 export type ValidationCode =
   | 'no-links'
+  | 'too-many-links'
   | 'empty-owner-name'
   | 'empty-entity-name'
   | 'invalid-percent'

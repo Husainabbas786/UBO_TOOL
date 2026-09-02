@@ -129,7 +129,7 @@ describe('CLAUDE.md case 3 — validation blocks calculation', () => {
     const result = validate(links)
     expect(result.ok).toBe(false)
     expect(result.errors.map((e) => e.message)).toContain(
-      'XYZ Ltd: owners total 50% — 50% missing.',
+      'XYZ Ltd: owners total 50% — 50% missing',
     )
   })
 
@@ -159,7 +159,7 @@ describe('validation rules', () => {
       link('2', 'B', 'individual', 50, 'Co'),
     ]
     expect(validate(links).errors.map((e) => e.message)).toContain(
-      'Co: owners total 110% — 10% over.',
+      'Co: owners total 110% — 10% over',
     )
   })
 
@@ -221,6 +221,7 @@ describe('validation rules', () => {
     const many = Array.from({ length: 51 }, (_, i) => link(`${i}`, `P${i}`, 'individual', 100, `C${i}`))
     const result = validate(many)
     expect(result.warnings).toHaveLength(1)
+    expect(result.warnings[0]?.code).toBe('too-many-links')
     expect(result.errors.some((e) => e.code === 'no-links')).toBe(false)
   })
 
