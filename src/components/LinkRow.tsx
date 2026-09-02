@@ -47,10 +47,10 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
 
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
         <span className="w-6 shrink-0 text-xs font-medium text-slate-400">{index + 1}</span>
 
-        <div className="min-w-[10rem] flex-1">
+        <div className="min-w-[7.5rem] flex-1">
           <TextInput
             aria-label={`Owner name, row ${index + 1}`}
             placeholder="Owner name"
@@ -78,7 +78,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
 
         <span className="text-sm text-slate-500">% of</span>
 
-        <div className="min-w-[10rem] flex-1">
+        <div className="min-w-[7.5rem] flex-1">
           <TextInput
             aria-label={`Entity name, row ${index + 1}`}
             placeholder="Company name"
@@ -120,7 +120,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
       </div>
 
       {issues.length > 0 || hint ? (
-        <div className="mt-2 space-y-1 pl-9">
+        <div className="mt-2 space-y-1 pl-8">
           {issues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
