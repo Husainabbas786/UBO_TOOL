@@ -7,6 +7,7 @@ import {
   defaultTargetKey,
   TOTAL_TOLERANCE,
   validate,
+  toKey,
   type CalculationResult,
   type ValidationIssue,
 } from './engine'
@@ -15,6 +16,7 @@ import { Blockers } from './components/Blockers'
 import { LinksBuilder } from './components/LinksBuilder'
 import { TargetSelect } from './components/TargetSelect'
 import { ThresholdSelect } from './components/ThresholdSelect'
+import { ResultsPanel } from './components/results/ResultsPanel'
 import { Button, Card } from './components/ui'
 
 export default function App() {
@@ -64,6 +66,27 @@ export default function App() {
   const reasons = anyRowDirty ? blockingReasons(validation.errors, rows, incompleteRowIds) : []
   const canCalculate = validation.ok && targetKey !== null
 
+  /**
+   * Control is a property of a person, not of a row. Toggling the box therefore
+   * updates every row where the same individual appears, so the boxes can never
+   * disagree with each other or with what the engine concludes.
+   */
+  const handleChangeRow = (updated: LinkRowState) => {
+    setRows((current) => {
+      const previous = current.find((row) => row.id === updated.id)
+      const next = current.map((row) => (row.id === updated.id ? updated : row))
+      const toggledControl =
+        previous !== undefined && previous.ownerIsController !== updated.ownerIsController
+      const ownerKey = toKey(updated.ownerName)
+      if (!toggledControl || updated.ownerType !== 'individual' || ownerKey === '') return next
+      return next.map((row) =>
+        row.ownerType === 'individual' && toKey(row.ownerName) === ownerKey
+          ? { ...row, ownerIsController: updated.ownerIsController }
+          : row,
+      )
+    })
+  }
+
   const handleCalculate = () => {
     if (!targetKey) return
     try {
@@ -111,9 +134,7 @@ export default function App() {
             incompleteRowIds={anyRowDirty ? incompleteRowIds : new Set<string>()}
             companyTotals={totalsWithStatus}
             partyIssues={partyIssues}
-            onChangeRow={(updated) =>
-              setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
-            }
+            onChangeRow={handleChangeRow}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
             onAddRow={() => setRows((current) => [...current, blankRow()])}
           />
@@ -159,15 +180,10 @@ export default function App() {
               </div>
             ) : null}
 
-            {result ? (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Calculated {result.target.name} at the {result.threshold}% threshold —{' '}
-                {result.entityCount} entities, {result.pathCount} ownership paths. The chart, paths
-                table, summary and intermediary blocks arrive in the next milestone.
-              </div>
-            ) : null}
           </div>
         </Card>
+
+        {result ? <ResultsPanel result={result} /> : null}
       </main>
 
       <footer className="mx-auto max-w-5xl px-6 pb-10 text-xs text-slate-500">

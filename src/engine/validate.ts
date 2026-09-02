@@ -50,10 +50,15 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
       errors.push({ code: 'empty-entity-name', message: 'Entity name is required.', linkId: link.id })
     }
 
-    if (!Number.isFinite(link.percent) || link.percent <= 0 || link.percent > 100) {
+    // 0% is allowed for a flagged individual only: control without ownership.
+    const isControlRow =
+      link.percent === 0 && link.ownerType === 'individual' && link.ownerIsController
+
+    if (!Number.isFinite(link.percent) || link.percent > 100 || (link.percent <= 0 && !isControlRow)) {
       errors.push({
         code: 'invalid-percent',
-        message: 'Percentage must be greater than 0 and no more than 100.',
+        message:
+          'Percentage must be greater than 0 and no more than 100. Enter 0% only with Controller ticked, for control without ownership.',
         linkId: link.id,
       })
     } else if (round2(link.percent) !== link.percent) {
@@ -155,7 +160,9 @@ export function companyTotals(
 ): Array<{ key: string; name: string; total: number }> {
   const totals = new Map<string, number>()
   for (const link of graph.links) {
-    if (!Number.isFinite(link.percent)) continue
+    // A control-only link is not a shareholding, so it neither counts towards
+    // the 100% total nor makes a company subject to the rule.
+    if (link.isControl || !Number.isFinite(link.percent)) continue
     totals.set(link.entityKey, (totals.get(link.entityKey) ?? 0) + link.percent)
   }
   return graph.nodes

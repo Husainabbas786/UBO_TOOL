@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, Ref } from 'react'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -42,16 +42,23 @@ export function TextInput({ invalid = false, className = '', ...props }: TextInp
   )
 }
 
-export function Card({ title, description, children }: {
+export function Card({ title, description, children, actions, sectionRef }: {
   title: string
   description?: string
   children: ReactNode
+  /** Controls shown on the right of the header, e.g. the download buttons. */
+  actions?: ReactNode
+  /** Handle on the whole block — the export in the next milestone targets this. */
+  sectionRef?: Ref<HTMLElement>
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <header className="border-b border-slate-200 px-5 py-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+    <section ref={sectionRef} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </header>
       <div className="px-5 py-4">{children}</div>
     </section>

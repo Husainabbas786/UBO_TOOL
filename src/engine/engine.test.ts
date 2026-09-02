@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { buildGraph } from './normalize'
+import { buildGraph, controlLinks } from './normalize'
 import { calculate, defaultTargetKey } from './calculate'
-import { validate } from './validate'
+import { companyTotals, validate } from './validate'
 import { SAMPLE_LINKS } from './sample'
 import type { OwnershipLinkInput } from './types'
 
@@ -394,5 +394,94 @@ describe('aggregation never duplicates an owner', () => {
     expect(result.ubos.filter((u) => u.key === 'nadia')).toHaveLength(1)
     expect(result.ubos[0]?.totalPercent).toBe(100)
     expect(result.ubos[0]?.basis).toBe('Ownership + Control')
+  })
+})
+
+describe('control without ownership (0% controller rows)', () => {
+  it('accepts 0% only when the Controller box is ticked', () => {
+    const flagged = validate([
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ])
+    expect(flagged.ok).toBe(true)
+
+    const unflagged = validate([
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', false),
+    ])
+    expect(unflagged.errors.map((e) => e.code)).toContain('invalid-percent')
+  })
+
+  it('does not let a control row disturb the company 100% total', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ]
+    const totals = companyTotals(buildGraph(links))
+    expect(totals).toEqual([{ key: 'abc ltd', name: 'ABC LTD', total: 100 }])
+    expect(validate(links).ok).toBe(true)
+  })
+
+  it('flags the 0% controller as a UBO with basis Control', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ]
+    const result = run(links)
+    const nadia = result.ubos.find((u) => u.name === 'Nadia')
+    expect(nadia?.totalPercent).toBe(0)
+    expect(nadia?.basis).toBe('Control')
+    expect(result.ubos.map((u) => [u.name, u.basis])).toEqual([
+      ['Masood', 'Ownership'],
+      ['Nadia', 'Control'],
+    ])
+  })
+
+  it('keeps the control link out of ownership paths and shares', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ]
+    const result = run(links)
+    expect(result.paths.map((p) => p.ownerName)).toEqual(['Masood'])
+    expect(controlLinks(result.graph)).toHaveLength(1)
+    expect(controlLinks(result.graph)[0]?.ownerKey).toBe('nadia')
+  })
+
+  it('still lets a company with only a control row be the target', () => {
+    const graph = buildGraph([link('1', 'Nadia', 'individual', 0, 'ABC LTD', true)])
+    expect(graph.targetCandidates.map((n) => n.name)).toEqual(['ABC LTD'])
+    expect(validate([link('1', 'Nadia', 'individual', 0, 'ABC LTD', true)]).ok).toBe(true)
+  })
+})
+
+describe('unidentified beneficial owner gaps', () => {
+  it('flags a qualifying stake held by a company with no owners entered', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 25, 'ABC LTD'),
+      link('2', 'XYZ Ltd', 'company', 75, 'ABC LTD'),
+    ]
+    const result = run(links)
+    expect(result.unidentified).toEqual([
+      { key: 'xyz ltd', name: 'XYZ Ltd', effectivePercent: 75 },
+    ])
+  })
+
+  it('clears the flag once that company has owners', () => {
+    expect(run(SAMPLE_LINKS).unidentified).toEqual([])
+  })
+
+  it('ignores a company below the threshold', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 90, 'ABC LTD'),
+      link('2', 'XYZ Ltd', 'company', 10, 'ABC LTD'),
+    ]
+    expect(run(links, 25).unidentified).toEqual([])
+    expect(run(links, 10).unidentified.map((g) => g.name)).toEqual(['XYZ Ltd'])
+  })
+
+  it('never flags the target itself', () => {
+    const result = run(SAMPLE_LINKS)
+    expect(result.unidentified.some((g) => g.key === result.target.key)).toBe(false)
   })
 })

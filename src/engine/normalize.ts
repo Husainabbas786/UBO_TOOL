@@ -51,6 +51,8 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
       ownerKey: owner.key,
       entityKey: entity.key,
       percent: link.percent,
+      isControl:
+        link.percent === 0 && link.ownerType === 'individual' && link.ownerIsController,
     })
   }
 
@@ -59,7 +61,9 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
     if (node.type === 'company') node.isController = false
   }
 
-  const owners = new Set(graphLinks.map((link) => link.ownerKey))
+  // A control-only link is not a shareholding, so it does not stop a company
+  // from being the target.
+  const owners = new Set(graphLinks.filter((l) => !l.isControl).map((link) => link.ownerKey))
   const nodes = [...nodeByKey.values()]
 
   return {
@@ -70,14 +74,22 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
   }
 }
 
-/** All links where `key` is the entity — i.e. who owns this party. */
+/**
+ * Shareholdings in `key` — who owns this party. Control-only links are excluded:
+ * they carry no economic interest, so no ownership calculation should see them.
+ */
 export function ownersOf(graph: OwnershipGraph, key: string): GraphLink[] {
-  return graph.links.filter((link) => link.entityKey === key)
+  return graph.links.filter((link) => link.entityKey === key && !link.isControl)
 }
 
-/** All links where `key` is the owner — i.e. what this party owns. */
+/** Shareholdings held by `key` — what this party owns. Excludes control links. */
 export function holdingsOf(graph: OwnershipGraph, key: string): GraphLink[] {
-  return graph.links.filter((link) => link.ownerKey === key)
+  return graph.links.filter((link) => link.ownerKey === key && !link.isControl)
+}
+
+/** The control-only links, which the chart draws as dashed edges. */
+export function controlLinks(graph: OwnershipGraph): GraphLink[] {
+  return graph.links.filter((link) => link.isControl)
 }
 
 /**

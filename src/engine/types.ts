@@ -33,6 +33,12 @@ export interface GraphLink {
   ownerKey: string
   entityKey: string
   percent: number
+  /**
+   * A 0% link from a flagged individual: control without ownership. It carries
+   * no economic interest, so it is excluded from ownership maths and from the
+   * "owners must total 100%" rule, and drawn as a dashed edge on the chart.
+   */
+  isControl: boolean
 }
 
 export interface OwnershipGraph {
@@ -110,8 +116,21 @@ export interface IntermediaryCompany {
   effectivePercent: number
 }
 
+/**
+ * A qualifying stake that runs into a company whose own owners were never
+ * entered — the chain stops there and the real beneficial owner is unknown.
+ */
+export interface UnidentifiedOwnerGap {
+  key: string
+  name: string
+  /** Effective % of the target held by the company with no owners entered. */
+  effectivePercent: number
+}
+
 export interface CalculationResult {
   target: PartyNode
+  /** The de-duplicated graph the result was computed from, for the chart. */
+  graph: OwnershipGraph
   threshold: number
   /** Every route from every ultimate owner to the target, highest % first. */
   paths: OwnershipPath[]
@@ -121,6 +140,8 @@ export interface CalculationResult {
   ubos: UboSummaryEntry[]
   /** Companies at or above the threshold that sit between owners and target. */
   intermediaries: IntermediaryCompany[]
+  /** Companies at or above the threshold whose own owners are missing. */
+  unidentified: UnidentifiedOwnerGap[]
   /** Total parties considered, for the summary note. */
   entityCount: number
   /** Total paths considered, for the summary note. */

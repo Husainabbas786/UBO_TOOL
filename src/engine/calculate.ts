@@ -11,6 +11,7 @@ import {
   type PartyNode,
   type UboBasis,
   type UboSummaryEntry,
+  type UnidentifiedOwnerGap,
 } from './types'
 
 /** The two thresholds the tool offers, per MOE risk rating. */
@@ -201,13 +202,32 @@ export function calculate(
     )
     .sort((a, b) => b.effectivePercent - a.effectivePercent || a.name.localeCompare(b.name))
 
+  // A qualifying stake that runs into a company with no owners entered: the
+  // chain stops there, so the real beneficial owner behind it is unknown.
+  const unidentified: UnidentifiedOwnerGap[] = graph.nodes
+    .filter(
+      (node) =>
+        node.type === 'company' &&
+        node.key !== target.key &&
+        ownersOf(graph, node.key).length === 0,
+    )
+    .map((node) => ({
+      key: node.key,
+      name: node.name,
+      effectivePercent: round2((shares.get(node.key) ?? 0) * 100),
+    }))
+    .filter((gap) => gap.effectivePercent > 0 && atLeast(gap.effectivePercent, threshold))
+    .sort((a, b) => b.effectivePercent - a.effectivePercent || a.name.localeCompare(b.name))
+
   return {
     target,
+    graph,
     threshold,
     paths,
     owners,
     ubos,
     intermediaries,
+    unidentified,
     entityCount: graph.nodes.length,
     pathCount: paths.length,
   }
