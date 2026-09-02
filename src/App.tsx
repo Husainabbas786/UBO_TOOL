@@ -185,7 +185,8 @@ export default function App() {
       </main>
 
       <footer className="mx-auto max-w-5xl border-t border-line px-6 py-8 text-small text-muted">
-        For internal compliance use. Informational only — does not constitute legal advice.
+        For internal compliance use only. This tool is informational and does not constitute legal
+        advice.
       </footer>
     </div>
   )

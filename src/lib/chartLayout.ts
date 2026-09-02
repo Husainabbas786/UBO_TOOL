@@ -33,6 +33,10 @@ export interface ChartLayout {
   edges: ChartEdge[]
 }
 
+/** Dagre returns fractional positions; snapping to whole pixels keeps strokes
+ *  and text crisp instead of straddling a pixel boundary and blurring. */
+const snap = (value: number): number => Math.round(value)
+
 const NODE_WIDTH = 168
 const NODE_HEIGHT = 58
 const LABEL_WIDTH = 58
@@ -80,8 +84,8 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       isUbo: uboKeys.has(node.key),
       isController: node.isController,
       effectiveLabel: percent === undefined ? null : `${formatPercent(percent)}% effective`,
-      x: positioned.x - NODE_WIDTH / 2 + PADDING,
-      y: positioned.y - NODE_HEIGHT / 2 + PADDING,
+      x: snap(positioned.x - NODE_WIDTH / 2 + PADDING),
+      y: snap(positioned.y - NODE_HEIGHT / 2 + PADDING),
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
     }
@@ -92,18 +96,21 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     const isControl = controlKeys.has(`${link.ownerKey}>${link.entityKey}`)
     return {
       id: link.id,
-      points: routed.points.map((point) => ({ x: point.x + PADDING, y: point.y + PADDING })),
+      points: routed.points.map((point) => ({
+        x: snap(point.x + PADDING),
+        y: snap(point.y + PADDING),
+      })),
       label: isControl ? 'Control' : `${formatPercent(link.percent)}%`,
       dashed: isControl,
-      labelX: (routed.x ?? 0) + PADDING,
-      labelY: (routed.y ?? 0) + PADDING,
+      labelX: snap((routed.x ?? 0) + PADDING),
+      labelY: snap((routed.y ?? 0) + PADDING),
     }
   })
 
   const laid = graph.graph()
   return {
-    width: (laid.width ?? 0) + PADDING * 2,
-    height: (laid.height ?? 0) + PADDING * 2,
+    width: Math.ceil((laid.width ?? 0) + PADDING * 2),
+    height: Math.ceil((laid.height ?? 0) + PADDING * 2),
     nodes,
     edges,
   }

@@ -31,7 +31,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
   if (links.length > MAX_LINKS) {
     warnings.push({
       code: 'too-many-links',
-      message: `${links.length} ownership links entered — above the recommended maximum of ${MAX_LINKS}.`,
+      message: `${links.length} ownership links entered, above the recommended maximum of ${MAX_LINKS}.`,
     })
   }
 
@@ -90,7 +90,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
     } else {
       errors.push({
         code: 'duplicate-link',
-        message: `${ownerName} already owns ${entityName} on another row — combine them into one link.`,
+        message: `${ownerName} already owns ${entityName} on another row. Combine them into one link.`,
         linkId: link.id,
       })
     }
@@ -109,7 +109,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
     if (declared.size > 1) {
       errors.push({
         code: 'type-conflict',
-        message: `${name} is entered as an individual on one row and a company on another — pick one.`,
+        message: `${name} is entered as an individual on one row and a company on another. Pick one.`,
         nodeKey: key,
       })
     }
@@ -128,7 +128,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
     const direction = total < 100 ? 'missing' : 'over'
     errors.push({
       code: 'totals-not-100',
-      message: `${name}: owners total ${formatPercentShort(total)}% — ${formatPercentShort(gap)}% ${direction}`,
+      message: `${name}: owners total ${formatPercentShort(total)}%, ${formatPercentShort(gap)}% ${direction}`,
       nodeKey: key,
     })
   }
@@ -147,7 +147,7 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
   if (resolved.links.length > 0 && resolved.targetCandidates.length === 0) {
     errors.push({
       code: 'no-target',
-      message: 'No target entity found — every company entered owns something else.',
+      message: 'No target entity found. Every company entered owns something else.',
     })
   }
 

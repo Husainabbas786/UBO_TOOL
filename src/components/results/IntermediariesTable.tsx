@@ -38,8 +38,8 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
   if (result.intermediaries.length === 0) {
     return (
       <p className="text-body text-muted">
-        No intermediary companies at or above the {result.threshold}% threshold — every owner holds
-        the target directly.
+        No intermediary companies at or above the {result.threshold}% threshold. Every owner holds the
+        target directly.
       </p>
     )
   }
@@ -84,7 +84,7 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
           </span>
         ) : null}
         {copied === 'failed' ? (
-          <span className="text-small text-coral">Could not copy — select the names manually.</span>
+          <span className="text-small text-coral">Could not copy. Select the names manually.</span>
         ) : null}
       </div>
     </div>

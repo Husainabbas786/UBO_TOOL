@@ -42,6 +42,10 @@
 @layer base {
   html {
     font-family: var(--font-sans);
+    /* Crisp text everywhere, including inside an exported capture. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -51,9 +55,15 @@
     line-height: 20px;
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Headings are sentence case throughout — never all-caps labels. */
+  /* The logo is only ever sized down, and never resampled by the browser. */
+  img {
+    image-rendering: auto;
+  }
+
+  /* Headings are sentence case throughout, never all-caps labels. */
   h1 {
     font-size: 36px;
     line-height: 38px;

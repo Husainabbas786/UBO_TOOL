@@ -53,7 +53,7 @@ export function LinksBuilder({
         </Button>
         <span className="text-small text-muted">
           {rows.length} of {MAX_LINKS} links
-          {atCap ? ' — recommended maximum reached' : ''}
+          {atCap ? ' (recommended maximum reached)' : ''}
         </span>
       </div>
 

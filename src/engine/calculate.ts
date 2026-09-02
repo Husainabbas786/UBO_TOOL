@@ -16,8 +16,8 @@ import {
 
 /** The two thresholds the tool offers, per MOE risk rating. */
 export const THRESHOLDS = [
-  { value: 25, label: '25% — Standard (Low / Medium risk)' },
-  { value: 10, label: '10% — High risk (Enhanced due diligence)' },
+  { value: 25, label: '25% (standard, low and medium risk)' },
+  { value: 10, label: '10% (high risk, enhanced due diligence)' },
 ] as const
 
 export const DEFAULT_THRESHOLD = 25

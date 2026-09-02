@@ -15,7 +15,7 @@ export function TargetSelect({ candidates, value, onChange }: TargetSelectProps)
   if (candidates.length === 0) {
     return (
       <p className="text-body text-muted">
-        No target entity yet — add a company that is owned but does not own anything else.
+        No target entity yet. Add a company that is owned but does not own anything else.
       </p>
     )
   }
@@ -29,7 +29,7 @@ export function TargetSelect({ candidates, value, onChange }: TargetSelectProps)
           {only?.name}
         </p>
         <p className="mt-1.5 text-small text-muted">
-          Auto-detected — the company that owns nothing.
+          Auto-detected: the company that owns nothing.
         </p>
       </div>
     )
@@ -46,7 +46,7 @@ export function TargetSelect({ candidates, value, onChange }: TargetSelectProps)
         ))}
       </Select>
       <p className="mt-1.5 text-small text-muted">
-        {candidates.length} companies own nothing — pick the one being analysed.
+        {candidates.length} companies own nothing. Pick the one being analysed.
       </p>
     </div>
   )

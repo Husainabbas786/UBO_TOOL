@@ -46,7 +46,7 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
             {result.unidentified.map((gap) => (
               <li key={gap.key}>
                 {formatPercent(gap.effectivePercent)}% of {result.target.name} traces to {gap.name},
-                whose owners have not been entered — beneficial owner unidentified.
+                whose owners have not been entered. Beneficial owner unidentified.
               </li>
             ))}
           </ul>

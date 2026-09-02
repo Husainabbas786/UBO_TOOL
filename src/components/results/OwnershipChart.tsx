@@ -32,6 +32,8 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           role="img"
           aria-label={`Ownership structure of ${result.target.name}`}
+          shapeRendering="geometricPrecision"
+          textRendering="optimizeLegibility"
           style={{ background: palette.surface }}
         >
           <defs>
@@ -107,7 +109,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                   rx={8}
                   fill={colours.fill}
                   stroke={colours.stroke}
-                  strokeWidth={node.isTarget || node.isUbo ? 2 : 1.25}
+                  strokeWidth={node.isTarget || node.isUbo ? 2 : 1.5}
                 />
                 <g transform={`translate(${node.x + 12}, ${node.y + node.height / 2 - 9})`}>
                   {node.type === 'individual' ? (
