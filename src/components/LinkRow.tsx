@@ -22,17 +22,15 @@ const TYPES: Array<{ value: PartyType; label: string }> = [
 /** Two-state segmented toggle for the owner's party type. */
 function TypeToggle({ value, onChange }: { value: PartyType; onChange: (t: PartyType) => void }) {
   return (
-    <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5">
+    <div className="inline-flex rounded-pill border border-fieldBorder bg-white p-0.5">
       {TYPES.map((type) => (
         <button
           key={type.value}
           type="button"
           aria-pressed={value === type.value}
           onClick={() => onChange(type.value)}
-          className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
-            value === type.value
-              ? 'bg-slate-800 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+          className={`rounded-pill px-3 py-1.5 text-small font-medium transition-colors ${
+            value === type.value ? 'bg-mfzBlue text-white' : 'text-navy hover:bg-field'
           }`}
         >
           {type.label}
@@ -46,9 +44,9 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
   const has = (code: ValidationIssue['code']) => issues.some((issue) => issue.code === code)
 
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-3">
+    <div className="rounded-card border border-line bg-white px-3 py-3">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-        <span className="w-6 shrink-0 text-xs font-medium text-slate-400">{index + 1}</span>
+        <span className="w-6 shrink-0 text-small font-medium text-muted">{index + 1}</span>
 
         <div className="min-w-[7.5rem] flex-1">
           <TextInput
@@ -62,7 +60,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
 
         <TypeToggle value={row.ownerType} onChange={(t) => onChange(withOwnerType(row, t))} />
 
-        <span className="text-sm text-slate-500">owns</span>
+        <span className="text-body text-muted">owns</span>
 
         <div className="w-20">
           <TextInput
@@ -76,7 +74,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           />
         </div>
 
-        <span className="text-sm text-slate-500">% of</span>
+        <span className="text-body text-muted">% of</span>
 
         <div className="min-w-[7.5rem] flex-1">
           <TextInput
@@ -88,16 +86,16 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           />
         </div>
 
-        <span className="rounded bg-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
+        <span className="rounded-pill bg-mfzBlue-t10 px-2.5 py-1 text-small font-medium text-mfzBlue">
           Company
         </span>
 
         {/* Control is a property of a natural person, never of a company. */}
         {row.ownerType === 'individual' ? (
-          <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          <label className="flex items-center gap-1.5 text-small text-navy">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-fieldBorder accent-purple"
               checked={row.ownerIsController}
               onChange={(e) => onChange({ ...row, ownerIsController: e.target.checked })}
             />
@@ -113,7 +111,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           title="Remove this link"
           disabled={!canRemove}
           onClick={onRemove}
-          className="px-2 py-1 text-base leading-none"
+          className="px-2.5 py-1 text-base leading-none"
         >
           ×
         </Button>
@@ -124,7 +122,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           {issues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
-          {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+          {hint ? <p className="text-small text-muted">{hint}</p> : null}
         </div>
       ) : null}
     </div>

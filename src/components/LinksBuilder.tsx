@@ -31,7 +31,7 @@ export function LinksBuilder({
   const atCap = rows.length >= MAX_LINKS
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="space-y-2">
         {rows.map((row, index) => (
           <LinkRow
@@ -48,24 +48,25 @@ export function LinksBuilder({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={onAddRow} disabled={atCap}>
-          + Add Ownership Link
+        <Button variant="secondary" onClick={onAddRow} disabled={atCap}>
+          Add ownership link
         </Button>
-        <span className="text-xs text-slate-500">
+        <span className="text-small text-muted">
           {rows.length} of {MAX_LINKS} links
           {atCap ? ' — recommended maximum reached' : ''}
         </span>
       </div>
 
-      <div className="border-t border-slate-200 pt-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Owner totals per company
-        </p>
+      <div className="border-t border-line pt-5">
+        <p className="mb-2 text-h4 font-medium text-navy">Owner totals per company</p>
         <CompanyTotals totals={companyTotals} />
         {partyIssues.length > 0 ? (
           <ul className="mt-3 space-y-1">
             {partyIssues.map((issue) => (
-              <li key={`${issue.code}-${issue.nodeKey ?? issue.message}`} className="text-xs text-rose-600">
+              <li
+                key={`${issue.code}-${issue.nodeKey ?? issue.message}`}
+                className="text-small text-coral"
+              >
                 {issue.message}
               </li>
             ))}

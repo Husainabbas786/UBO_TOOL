@@ -1,5 +1,6 @@
 import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
+import { fontEmbedCss } from './fontEmbed'
 
 export type BlockName = 'Chart' | 'Paths' | 'Summary' | 'Intermediaries'
 export type PageOrientation = 'portrait' | 'landscape'
@@ -86,6 +87,11 @@ function keepInExport(node: HTMLElement): boolean {
  * capture size is then read back from the expanded element.
  */
 export async function renderPng(node: HTMLElement): Promise<string> {
+  // Both must settle before rasterising, or the capture can pick up the
+  // fallback face: the page's own fonts, and the base64 copy handed to
+  // html-to-image so the exported file carries Plus Jakarta Sans too.
+  const [embeddedFonts] = await Promise.all([fontEmbedCss(), document.fonts.ready])
+
   node.classList.add('exporting')
   try {
     // Force a reflow so the expanded width is measurable.
@@ -98,11 +104,13 @@ export async function renderPng(node: HTMLElement): Promise<string> {
       height,
       filter: keepInExport,
       style: { margin: '0' },
-      // The page uses the system font stack, so there are no web fonts to
-      // embed. Skipping that phase also avoids html-to-image walking every
-      // stylesheet in the document — including ones injected by browser
-      // extensions, which it cannot read and then hangs trying to fetch.
+      // Hand over ready-made @font-face rules rather than letting
+      // html-to-image discover fonts by walking every stylesheet in the
+      // document — it cannot read the ones browser extensions inject, and
+      // hangs trying to fetch them. fontEmbedCSS takes precedence over
+      // skipFonts, so the brand face still reaches the exported file.
       skipFonts: true,
+      fontEmbedCSS: embeddedFonts,
     })
     return await withTimeout(capture, CAPTURE_TIMEOUT_MS)
   } finally {

@@ -37,7 +37,7 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
 
   if (result.intermediaries.length === 0) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-body text-muted">
         No intermediary companies at or above the {result.threshold}% threshold — every owner holds
         the target directly.
       </p>
@@ -53,18 +53,18 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
   return (
     <div className="space-y-3">
       <div data-export-scroll className="overflow-x-auto">
-        <table className="w-full min-w-[24rem] border-collapse text-sm">
+        <table className="w-full min-w-[24rem] border-collapse text-body">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="py-2 pr-4 font-semibold">Company</th>
-              <th className="py-2 text-right font-semibold">Effective % of target</th>
+            <tr className="border-b border-line text-left text-h4 font-medium text-navy">
+              <th className="h-row pr-4 align-middle font-medium">Company</th>
+              <th className="h-row text-right align-middle font-medium">Effective % of target</th>
             </tr>
           </thead>
           <tbody>
             {result.intermediaries.map((company) => (
-              <tr key={company.key} className="border-b border-slate-100 last:border-0">
-                <td className="py-2.5 pr-4 font-medium text-slate-900">{company.name}</td>
-                <td className="py-2.5 text-right font-medium tabular-nums text-slate-900">
+              <tr key={company.key} className="border-b border-line last:border-0">
+                <td className="h-row pr-4 align-middle font-semibold text-ink">{company.name}</td>
+                <td className="h-row text-right align-middle font-semibold tabular-nums text-ink">
                   {formatPercent(company.effectivePercent)}%
                 </td>
               </tr>
@@ -74,15 +74,17 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
       </div>
 
       <div data-export-hide className="flex items-center gap-3">
-        <Button onClick={handleCopy}>Copy names</Button>
+        <Button variant="secondary" onClick={handleCopy}>
+          Copy names
+        </Button>
         {copied === 'done' ? (
-          <span className="text-xs text-emerald-700">
+          <span className="text-small text-darkGreen">
             Copied {result.intermediaries.length} name
             {result.intermediaries.length === 1 ? '' : 's'}, one per line.
           </span>
         ) : null}
         {copied === 'failed' ? (
-          <span className="text-xs text-rose-600">Could not copy — select the names manually.</span>
+          <span className="text-small text-coral">Could not copy — select the names manually.</span>
         ) : null}
       </div>
     </div>

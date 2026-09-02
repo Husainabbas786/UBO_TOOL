@@ -22,7 +22,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
   return (
     <div className="space-y-6">
       <Card
-        title="Ownership Chart"
+        title="Ownership chart"
         description={`Structure of ${target} at the ${result.threshold}% threshold.`}
         sectionRef={chartRef}
         actions={
@@ -33,7 +33,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
       </Card>
 
       <Card
-        title="Ownership Paths"
+        title="Ownership paths"
         description="Every route from an ultimate owner down to the target entity."
         sectionRef={pathsRef}
         actions={
@@ -59,7 +59,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
       </Card>
 
       <Card
-        title="Intermediary Companies (for screening)"
+        title="Intermediary companies (for screening)"
         description="Screen these in the ERP for sanctions, PEP and adverse media."
         sectionRef={intermediariesRef}
         actions={

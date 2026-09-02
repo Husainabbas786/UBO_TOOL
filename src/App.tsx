@@ -16,6 +16,7 @@ import { Blockers } from './components/Blockers'
 import { LinksBuilder } from './components/LinksBuilder'
 import { TargetSelect } from './components/TargetSelect'
 import { ThresholdSelect } from './components/ThresholdSelect'
+import { Header } from './components/Header'
 import { ResultsPanel } from './components/results/ResultsPanel'
 import { Button, Card } from './components/ui'
 
@@ -115,17 +116,12 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-5">
-          <h1 className="text-xl font-semibold">UBO Structuring Tool</h1>
-          <p className="text-sm text-slate-500">Meydan Free Zone — Compliance</p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-white text-ink">
+      <Header />
 
-      <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+      <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
         <Card
-          title="Ownership Links"
+          title="Ownership links"
           description="One row per shareholding: who owns what percentage of which company."
         >
           <LinksBuilder
@@ -144,7 +140,7 @@ export default function App() {
           <Card title="Threshold">
             <ThresholdSelect value={threshold} onChange={setThreshold} />
           </Card>
-          <Card title="Target Entity">
+          <Card title="Target entity">
             <TargetSelect
               candidates={graph.targetCandidates}
               value={targetKey}
@@ -156,17 +152,19 @@ export default function App() {
         <Card title="Calculate">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="primary" disabled={!canCalculate} onClick={handleCalculate}>
-                Calculate Ownership
+              <Button variant="green" disabled={!canCalculate} onClick={handleCalculate}>
+                Calculate ownership
               </Button>
-              <Button onClick={handleLoadExample}>Load example</Button>
-              <Button variant="ghost" onClick={handleStartOver}>
-                Start Over
+              <Button variant="secondary" onClick={handleLoadExample}>
+                Load example
+              </Button>
+              <Button variant="quiet" onClick={handleStartOver}>
+                Start over
               </Button>
             </div>
 
             {!anyRowDirty ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-body text-muted">
                 Enter at least one ownership link, or load the example structure to see how it
                 works.
               </p>
@@ -175,7 +173,7 @@ export default function App() {
             <Blockers reasons={reasons} warnings={validation.warnings.map((w) => w.message)} />
 
             {engineError ? (
-              <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+              <div className="rounded-card border border-coral bg-gapTint px-4 py-3 text-body text-coral">
                 {engineError}
               </div>
             ) : null}
@@ -186,7 +184,7 @@ export default function App() {
         {result ? <ResultsPanel result={result} /> : null}
       </main>
 
-      <footer className="mx-auto max-w-5xl px-6 pb-10 text-xs text-slate-500">
+      <footer className="mx-auto max-w-5xl border-t border-line px-6 py-8 text-small text-muted">
         For internal compliance use. Informational only — does not constitute legal advice.
       </footer>
     </div>

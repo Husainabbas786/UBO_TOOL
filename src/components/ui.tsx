@@ -1,14 +1,22 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, Ref } from 'react'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+/**
+ * Buttons are pills, per the web-elements section of BRAND.md. Only buttons —
+ * inputs stay at a 6px radius.
+ */
+type ButtonVariant = 'primary' | 'green' | 'secondary' | 'quiet' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
+  // Teal → navy gradient, white SemiBold text.
   primary:
-    'bg-slate-800 text-white hover:bg-slate-700 disabled:bg-slate-300 disabled:text-slate-500',
+    'bg-gradient-to-r from-deepTeal to-navy text-white shadow-sm hover:brightness-110 disabled:bg-none disabled:bg-disabled disabled:text-muted disabled:shadow-none',
+  // The main call to action. Dark green leads so white text keeps AA contrast.
+  green:
+    'bg-gradient-to-r from-darkGreen to-mfzGreen text-white shadow-sm hover:brightness-110 disabled:bg-none disabled:bg-disabled disabled:text-muted disabled:shadow-none',
   secondary:
-    'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-400',
-  ghost: 'text-slate-600 hover:bg-slate-100 disabled:text-slate-300',
-  danger: 'text-slate-400 hover:bg-rose-50 hover:text-rose-600',
+    'bg-white text-deepTeal border-[1.5px] border-deepTeal hover:bg-deepTeal-t10 disabled:border-disabled disabled:text-muted',
+  quiet: 'text-navy hover:bg-field disabled:text-disabled',
+  danger: 'text-muted hover:bg-gapTint hover:text-coral',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -19,7 +27,7 @@ export function Button({ variant = 'secondary', className = '', ...props }: Butt
   return (
     <button
       type="button"
-      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed ${BUTTON_STYLES[variant]} ${className}`}
+      className={`rounded-pill px-4 py-2 text-cta font-semibold transition-[filter,background-color,color] disabled:cursor-not-allowed ${BUTTON_STYLES[variant]} ${className}`}
       {...props}
     />
   )
@@ -29,14 +37,33 @@ interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean
 }
 
+/** Light fill, 1px border, 6px radius, teal focus ring. */
 export function TextInput({ invalid = false, className = '', ...props }: TextInputProps) {
   return (
     <input
-      className={`w-full rounded-md border px-2.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 ${
+      className={`w-full rounded-input border px-2.5 py-2 text-body text-ink placeholder:text-muted focus:outline-none focus-visible:outline-none focus-visible:ring-2 ${
         invalid
-          ? 'border-rose-400 bg-rose-50 focus-visible:ring-rose-300'
-          : 'border-slate-300 bg-white focus-visible:ring-slate-400'
+          ? 'border-coral bg-gapTint focus-visible:ring-coral'
+          : 'border-fieldBorder bg-field focus-visible:ring-deepTeal'
       } ${className}`}
+      {...props}
+    />
+  )
+}
+
+/** Field label: above the field, Medium, navy. */
+export function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-1.5 block text-h4 font-medium text-navy">
+      {children}
+    </label>
+  )
+}
+
+export function Select({ className = '', ...props }: InputHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={`w-full rounded-input border border-fieldBorder bg-field px-2.5 py-2 text-body text-ink focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deepTeal ${className}`}
       {...props}
     />
   )
@@ -48,24 +75,24 @@ export function Card({ title, description, children, actions, sectionRef }: {
   children: ReactNode
   /** Controls shown on the right of the header, e.g. the download buttons. */
   actions?: ReactNode
-  /** Handle on the whole block — the export in the next milestone targets this. */
+  /** Handle on the whole block — the PNG/PDF export targets this element. */
   sectionRef?: Ref<HTMLElement>
 }) {
   return (
-    <section ref={sectionRef} className="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+    <section ref={sectionRef} className="rounded-card border border-line bg-white">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+          <h2 className="text-h3 font-semibold text-mfzBlue">{title}</h2>
+          {description ? <p className="mt-1 text-body text-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </header>
-      <div className="px-5 py-4">{children}</div>
+      <div className="px-6 py-5">{children}</div>
     </section>
   )
 }
 
 /** Inline validation message attached to a row or a company. */
 export function ErrorText({ children }: { children: ReactNode }) {
-  return <p className="text-xs text-rose-600">{children}</p>
+  return <p className="text-small text-coral">{children}</p>
 }

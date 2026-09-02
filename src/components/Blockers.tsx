@@ -5,12 +5,12 @@ export function Blockers({ reasons, warnings }: { reasons: string[]; warnings: s
   return (
     <div className="space-y-3">
       {reasons.length > 0 ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3">
-          <p className="text-sm font-medium text-rose-800">
+        <div className="rounded-card border border-coral bg-gapTint px-4 py-3">
+          <p className="text-body font-semibold text-coral">
             Fix {reasons.length === 1 ? 'this' : `these ${reasons.length} issues`} before
             calculating:
           </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-body text-coral">
             {reasons.map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
@@ -19,8 +19,8 @@ export function Blockers({ reasons, warnings }: { reasons: string[]; warnings: s
       ) : null}
 
       {warnings.length > 0 ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-          <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800">
+        <div className="rounded-card border border-steelBlue bg-infoTint px-4 py-3">
+          <ul className="list-disc space-y-1 pl-5 text-body text-navy">
             {warnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}

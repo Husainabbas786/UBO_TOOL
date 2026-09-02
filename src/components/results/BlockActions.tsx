@@ -40,11 +40,11 @@ export function BlockActions({ blockRef, target, block, orientation }: BlockActi
 
   return (
     <div data-export-hide className="flex flex-wrap items-center gap-2">
-      {error ? <span className="text-xs text-rose-600">{error}</span> : null}
-      <Button disabled={busy !== null} onClick={() => void run('png')}>
+      {error ? <span className="max-w-[18rem] text-small text-coral">{error}</span> : null}
+      <Button variant="secondary" disabled={busy !== null} onClick={() => void run('png')}>
         {busy === 'png' ? 'Saving…' : 'Download PNG'}
       </Button>
-      <Button disabled={busy !== null} onClick={() => void run('pdf')}>
+      <Button variant="secondary" disabled={busy !== null} onClick={() => void run('pdf')}>
         {busy === 'pdf' ? 'Saving…' : 'Download PDF'}
       </Button>
     </div>

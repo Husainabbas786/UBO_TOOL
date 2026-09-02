@@ -3,6 +3,78 @@
 @tailwind utilities;
 
 /*
+ * CSS mirror of src/theme/tokens.ts. Tailwind reads the tokens module directly;
+ * these variables cover the handful of places that need raw CSS. Keep the two
+ * in step — tokens.ts is the source of truth.
+ */
+:root {
+  --mfz-blue: #00518c;
+  --mfz-green: #62a830;
+  --light-green: #029956;
+  --dark-green: #06603a;
+
+  --navy: #1f3f76;
+  --deep-teal: #0b7a9e;
+  --teal: #64bec7;
+  --steel-blue: #6a9dbf;
+  --pale-sky: #d2f0fc;
+  --sage: #75b677;
+  --purple: #8b65a4;
+  --coral: #d26153;
+
+  --ink: #0f1f33;
+  --muted: #6a7c8f;
+  --line: #e3ebf2;
+  --field: #f4f8fb;
+  --field-border: #d6e0e8;
+  --disabled: #c9d3dc;
+
+  --ubo-tint: #ecf6e4;
+  --gap-tint: #fbe9e6;
+
+  --radius-input: 6px;
+  --radius-card: 10px;
+  --row-height: 46px;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    background: #ffffff;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Headings are sentence case throughout — never all-caps labels. */
+  h1 {
+    font-size: 36px;
+    line-height: 38px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 18px;
+    line-height: 21px;
+    font-weight: 600;
+  }
+
+  /* One visible focus treatment everywhere, in the brand's focus teal. */
+  :focus-visible {
+    outline: 2px solid var(--deep-teal);
+    outline-offset: 2px;
+  }
+}
+
+/*
  * While a block is being captured for PNG/PDF, let its horizontal scrollers
  * expand: a chart or table wider than the card would otherwise be cropped at
  * the card's edge in the exported image.
