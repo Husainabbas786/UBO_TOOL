@@ -104,7 +104,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                 </g>
                 <text
                   x={node.x + 38}
-                  y={node.y + (node.effectiveLabel ? 24 : 33)}
+                  y={node.y + (node.effectiveLabel || node.isTarget ? 24 : 34)}
                   fontSize={12.5}
                   fontWeight={600}
                   fill={colours.text}
