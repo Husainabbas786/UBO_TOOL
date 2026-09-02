@@ -39,6 +39,8 @@ export interface GraphLink {
    * "owners must total 100%" rule, and drawn as a dashed edge on the chart.
    */
   isControl: boolean
+  /** The Controller box was ticked on this row, whatever the percentage. */
+  declaredController: boolean
 }
 
 export interface OwnershipGraph {
@@ -110,6 +112,8 @@ export interface UboSummaryEntry {
   totalPercent: number
   basis: UboBasis
   isController: boolean
+  /** Companies this person was flagged as controlling, in display spelling. */
+  controls: string[]
   pathCount: number
 }
 

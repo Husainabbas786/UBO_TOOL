@@ -162,6 +162,27 @@ export function calculate(
     totals.set(raw.ownerKey, entry)
   }
 
+  /*
+   * Which companies each flagged person controls.
+   *
+   * A dedicated control-only row is the clearest statement of intent, so those
+   * win outright. Only when someone has none do we fall back to the rows where
+   * the box happens to be ticked — the checkbox syncs across every row for the
+   * same person, so treating all of them as control claims would overstate it.
+   */
+  const controlOnly = new Map<string, string[]>()
+  const declaredOn = new Map<string, string[]>()
+  for (const link of graph.links) {
+    if (!link.declaredController) continue
+    const bucket = link.isControl ? controlOnly : declaredOn
+    const list = bucket.get(link.ownerKey) ?? []
+    const entityName = nameOf(link.entityKey)
+    if (!list.includes(entityName)) list.push(entityName)
+    bucket.set(link.ownerKey, list)
+  }
+  const controlsFor = (key: string): string[] =>
+    controlOnly.get(key) ?? declaredOn.get(key) ?? []
+
   const toEntry = (node: PartyNode, fraction: number, pathCount: number): UboSummaryEntry => {
     const totalPercent = round2(fraction * 100)
     return {
@@ -171,6 +192,7 @@ export function calculate(
       totalPercent,
       basis: basisFor(atLeast(totalPercent, threshold), node.isController),
       isController: node.isController,
+      controls: controlsFor(node.key),
       pathCount,
     }
   }

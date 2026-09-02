@@ -1,5 +1,5 @@
 import { formatPercentShort, round2 } from './format'
-import { buildGraph, findCycle, normaliseName, toKey } from './normalize'
+import { buildGraph, findCycle, isControlRow, normaliseName, toKey } from './normalize'
 import type {
   OwnershipGraph,
   OwnershipLinkInput,
@@ -50,15 +50,26 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
       errors.push({ code: 'empty-entity-name', message: 'Entity name is required.', linkId: link.id })
     }
 
-    // 0% is allowed for a flagged individual only: control without ownership.
-    const isControlRow =
-      link.percent === 0 && link.ownerType === 'individual' && link.ownerIsController
+    // 0% (or a blank percentage) is allowed for a flagged individual: that is
+    // control without ownership.
+    const control = isControlRow(link)
+    const blankOrZero = link.percent === 0 || !Number.isFinite(link.percent)
 
-    if (!Number.isFinite(link.percent) || link.percent > 100 || (link.percent <= 0 && !isControlRow)) {
+    if (control) {
+      // Nothing to check: a control row carries no percentage.
+    } else if (blankOrZero && link.ownerType === 'individual') {
+      // Point them straight at the checkbox. In the field this is the moment a
+      // first-time user gives up, because nothing tells them it exists.
       errors.push({
         code: 'invalid-percent',
         message:
-          'Percentage must be greater than 0 and no more than 100. Enter 0% only with Controller ticked, for control without ownership.',
+          'Enter a percentage above 0, or tick Controller if this person has control (e.g. voting rights) without ownership.',
+        linkId: link.id,
+      })
+    } else if (!Number.isFinite(link.percent) || link.percent <= 0 || link.percent > 100) {
+      errors.push({
+        code: 'invalid-percent',
+        message: 'Percentage must be greater than 0 and no more than 100.',
         linkId: link.id,
       })
     } else if (round2(link.percent) !== link.percent) {

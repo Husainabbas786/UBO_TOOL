@@ -47,8 +47,8 @@ export function Header() {
             fetchPriority="high"
           />
           <div className="border-l border-line pl-10">
-            <h1 className="text-h1 font-semibold text-mfzBlue">UBO structuring tool</h1>
-            <p className="mt-1.5 text-body font-medium text-navy">Compliance department</p>
+            <h1 className="text-h1 font-semibold text-mfzBlue">UBO Structuring Tool</h1>
+            <p className="mt-1.5 text-body font-medium text-navy">Compliance Department</p>
           </div>
         </div>
       </div>

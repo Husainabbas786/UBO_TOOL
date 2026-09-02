@@ -1,4 +1,20 @@
-import { formatPercent, type CalculationResult } from '../../engine'
+import { formatPercent, type CalculationResult, type UboSummaryEntry } from '../../engine'
+
+/**
+ * How a beneficial owner qualifies, in words. Someone who qualifies purely on
+ * control needs to be told which company they control, otherwise the line reads
+ * as a 0% owner and means nothing to a reviewer.
+ */
+function describeBasis(ubo: UboSummaryEntry, targetName: string): string {
+  const owned = `${formatPercent(ubo.totalPercent)}% ownership`
+  const controlled = ubo.controls.length > 0 ? ubo.controls.join(', ') : targetName
+
+  if (ubo.basis === 'Control') return `: control of ${controlled} (${owned})`
+  if (ubo.basis === 'Ownership + Control') {
+    return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}, and control of ${controlled}`
+  }
+  return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}`
+}
 
 export function SummaryBlock({ result }: { result: CalculationResult }) {
   const count = result.ubos.length
@@ -19,16 +35,14 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
       {count > 0 ? (
         <ul className="space-y-2 text-body text-ink">
           {result.ubos.map((ubo) => (
-            <li key={ubo.key} className="flex flex-wrap items-baseline gap-x-1.5">
-              <span className="font-semibold text-navy">{ubo.name}</span>
+            <li key={ubo.key} className="flex flex-wrap items-baseline gap-x-2">
               <span>
-                holds {formatPercent(ubo.totalPercent)}% of {result.target.name}
+                <span className="font-semibold text-navy">{ubo.name}</span>
+                {describeBasis(ubo, result.target.name)}
               </span>
               <span
                 className={`rounded-pill px-2 py-0.5 text-small font-medium ${
-                  ubo.basis === 'Ownership'
-                    ? 'bg-uboTint text-darkGreen'
-                    : 'bg-purple text-white'
+                  ubo.basis === 'Ownership' ? 'bg-uboTint text-darkGreen' : 'bg-purple text-white'
                 }`}
               >
                 {ubo.basis}

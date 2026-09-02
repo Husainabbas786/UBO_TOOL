@@ -66,7 +66,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           <TextInput
             aria-label={`Percentage, row ${index + 1}`}
             inputMode="decimal"
-            placeholder="0.00"
+            placeholder={row.ownerIsController ? '0' : '0.00'}
             className="text-right"
             value={row.percentText}
             invalid={has('invalid-percent') || has('percent-precision')}
@@ -90,19 +90,32 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
           Company
         </span>
 
-        {/* Control is a property of a natural person, never of a company. */}
+        {/* Control is a property of a natural person, never of a company. This
+            is the control a first-time user has to find on their own, so it is
+            given a real label and a plain-language hint. */}
         {row.ownerType === 'individual' ? (
-          <label className="flex items-center gap-1.5 text-small text-navy">
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-input border px-2.5 py-1.5 transition-colors ${
+              row.ownerIsController
+                ? 'border-purple bg-purple-t10'
+                : 'border-fieldBorder bg-white hover:bg-field'
+            }`}
+          >
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-fieldBorder accent-purple"
+              className="h-[18px] w-[18px] shrink-0 rounded border-fieldBorder accent-purple"
               checked={row.ownerIsController}
               onChange={(e) => onChange({ ...row, ownerIsController: e.target.checked })}
             />
-            Controller
+            <span className="leading-tight">
+              <span className="block text-small font-medium text-navy">Controller</span>
+              <span className="block text-[11px] leading-tight text-muted">
+                has control, e.g. voting rights
+              </span>
+            </span>
           </label>
         ) : (
-          <span className="w-[5.5rem]" aria-hidden />
+          <span className="w-[11.5rem]" aria-hidden />
         )}
 
         <Button
@@ -117,11 +130,14 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
         </Button>
       </div>
 
-      {issues.length > 0 || hint ? (
+      {issues.length > 0 || hint || row.ownerIsController ? (
         <div className="mt-2 space-y-1 pl-8">
           {issues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
+          {row.ownerIsController ? (
+            <p className="text-small text-purple">0% is allowed for a controller.</p>
+          ) : null}
           {hint ? <p className="text-small text-muted">{hint}</p> : null}
         </div>
       ) : null}

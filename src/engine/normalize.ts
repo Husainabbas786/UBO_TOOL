@@ -17,6 +17,18 @@ export function toKey(name: string): string {
 }
 
 /**
+ * A control-only row: a person flagged as a controller who holds no shares.
+ *
+ * The percentage may be 0 or left empty. A first-time user types the name and
+ * ticks the box without ever touching the percent field, and that has to work
+ * exactly as well as typing a 0 first.
+ */
+export function isControlRow(link: OwnershipLinkInput): boolean {
+  if (link.ownerType !== 'individual' || !link.ownerIsController) return false
+  return link.percent === 0 || !Number.isFinite(link.percent)
+}
+
+/**
  * Turns builder rows into a de-duplicated graph. A name that appears on both
  * sides of the arrows is one node, and a party seen as a company anywhere stays
  * a company — the entity side of a link is always a company by definition.
@@ -46,13 +58,15 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
 
     const owner = upsert(link.ownerName, link.ownerType, link.ownerIsController)
     const entity = upsert(link.entityName, 'company', false)
+    const control = isControlRow(link)
     graphLinks.push({
       id: link.id,
       ownerKey: owner.key,
       entityKey: entity.key,
-      percent: link.percent,
-      isControl:
-        link.percent === 0 && link.ownerType === 'individual' && link.ownerIsController,
+      // An empty percentage on a control row normalises to a clean 0.
+      percent: control ? 0 : link.percent,
+      isControl: control,
+      declaredController: link.ownerType === 'individual' && link.ownerIsController,
     })
   }
 

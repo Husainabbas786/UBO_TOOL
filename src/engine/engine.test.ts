@@ -517,3 +517,110 @@ describe('a company is never labelled UBO', () => {
     expect(result.ubos.every((u) => u.type === 'individual')).toBe(true)
   })
 })
+
+describe('0% controllers, the way a first-time user enters them', () => {
+  it('accepts a 0% controller of the target company', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Dinesh', 'individual', 0, 'ABC LTD', true),
+    ]
+    expect(validate(links).ok).toBe(true)
+    const dinesh = run(links).ubos.find((u) => u.name === 'Dinesh')
+    expect(dinesh?.basis).toBe('Control')
+    expect(dinesh?.totalPercent).toBe(0)
+    expect(dinesh?.controls).toEqual(['ABC LTD'])
+  })
+
+  it('accepts a controller whose percentage was never typed at all', () => {
+    // Tick-then-type: the box goes on while the percent field is still empty.
+    const blank = { ...link('2', 'Dinesh', 'individual', 0, 'ABC LTD', true), percent: Number.NaN }
+    const links = [link('1', 'Masood', 'individual', 100, 'ABC LTD'), blank]
+    expect(validate(links).ok).toBe(true)
+    expect(buildGraph(links).links[1]?.percent).toBe(0)
+    expect(run(links).ubos.find((u) => u.name === 'Dinesh')?.basis).toBe('Control')
+  })
+
+  it('points an unticked 0% row at the checkbox', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Dinesh', 'individual', 0, 'ABC LTD', false),
+    ]
+    const issue = validate(links).errors.find((e) => e.code === 'invalid-percent')
+    expect(issue?.message).toBe(
+      'Enter a percentage above 0, or tick Controller if this person has control (e.g. voting rights) without ownership.',
+    )
+    expect(issue?.linkId).toBe('2')
+  })
+
+  it('keeps a 0% control row out of the company total', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Dinesh', 'individual', 0, 'ABC LTD', true),
+    ]
+    expect(companyTotals(buildGraph(links))).toEqual([
+      { key: 'abc ltd', name: 'ABC LTD', total: 100 },
+    ])
+  })
+
+  it('handles a 0% controller who also owns shares elsewhere', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 40, 'ABC LTD'),
+      link('2', 'XYZ Ltd', 'company', 60, 'ABC LTD'),
+      link('3', 'Dinesh', 'individual', 100, 'XYZ Ltd', true),
+      link('4', 'Dinesh', 'individual', 0, 'ABC LTD', true),
+    ]
+    const result = run(links)
+    const dinesh = result.ubos.filter((u) => u.name === 'Dinesh')
+    expect(dinesh).toHaveLength(1)
+    // 100% of XYZ Ltd, which holds 60% of the target.
+    expect(dinesh[0]?.totalPercent).toBe(60)
+    expect(dinesh[0]?.basis).toBe('Ownership + Control')
+    // The dedicated control row wins over the synced tick on the XYZ row.
+    expect(dinesh[0]?.controls).toEqual(['ABC LTD'])
+  })
+
+  it('handles a controller who also holds a small stake', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 97, 'ABC LTD'),
+      link('2', 'Dinesh', 'individual', 3, 'ABC LTD', true),
+    ]
+    const dinesh = run(links).ubos.find((u) => u.name === 'Dinesh')
+    expect(dinesh?.totalPercent).toBe(3)
+    expect(dinesh?.basis).toBe('Control')
+    expect(dinesh?.controls).toEqual(['ABC LTD'])
+  })
+
+  it('allows two controllers on one company', () => {
+    const links = [
+      link('1', 'Masood', 'individual', 100, 'ABC LTD'),
+      link('2', 'Dinesh', 'individual', 0, 'ABC LTD', true),
+      link('3', 'Layla', 'individual', 0, 'ABC LTD', true),
+    ]
+    expect(validate(links).ok).toBe(true)
+    const result = run(links)
+    expect(result.ubos.map((u) => [u.name, u.basis])).toEqual([
+      ['Masood', 'Ownership'],
+      ['Dinesh', 'Control'],
+      ['Layla', 'Control'],
+    ])
+  })
+
+  it('treats a controller of an intermediary as a UBO of the target', () => {
+    // The meeting's open question: ABC is the target, XYZ holds 30%, and
+    // Masood controls XYZ without owning it.
+    const links = [
+      link('1', 'Husain', 'individual', 70, 'ABC LTD'),
+      link('2', 'XYZ Ltd', 'company', 30, 'ABC LTD'),
+      link('3', 'Sara', 'individual', 100, 'XYZ Ltd'),
+      link('4', 'Masood', 'individual', 0, 'XYZ Ltd', true),
+    ]
+    expect(validate(links).ok).toBe(true)
+    const result = run(links)
+    const masood = result.ubos.find((u) => u.name === 'Masood')
+    expect(masood?.basis).toBe('Control')
+    expect(masood?.totalPercent).toBe(0)
+    expect(masood?.controls).toEqual(['XYZ Ltd'])
+    // XYZ Ltd holds 30%, so it is above the threshold and gets screened.
+    expect(result.intermediaries.map((c) => c.name)).toEqual(['XYZ Ltd'])
+  })
+})
