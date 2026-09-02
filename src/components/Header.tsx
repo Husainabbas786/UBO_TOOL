@@ -43,7 +43,8 @@ export function Header() {
             className="h-11 w-auto shrink-0"
             width={892}
             height={324}
-            decoding="async"
+            decoding="sync"
+            fetchPriority="high"
           />
           <div className="border-l border-line pl-10">
             <h1 className="text-h1 font-semibold text-mfzBlue">UBO structuring tool</h1>
