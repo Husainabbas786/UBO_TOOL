@@ -81,7 +81,12 @@ export interface ValidationResult {
   warnings: ValidationIssue[]
 }
 
-export type UboStatus = 'UBO' | 'Below threshold'
+/**
+ * A beneficial owner is always a natural person, so a company is never labelled
+ * 'UBO'. A company only reaches the end of a chain when its own owners were
+ * never entered, and that is what 'No owners entered' says.
+ */
+export type UboStatus = 'UBO' | 'Below threshold' | 'No owners entered'
 export type UboBasis = 'Ownership' | 'Control' | 'Ownership + Control'
 
 /** One route from an ultimate owner down to the target entity. */

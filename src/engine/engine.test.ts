@@ -485,3 +485,35 @@ describe('unidentified beneficial owner gaps', () => {
     expect(result.unidentified.some((g) => g.key === result.target.key)).toBe(false)
   })
 })
+
+describe('a company is never labelled UBO', () => {
+  const links = [
+    link('1', 'Masood', 'individual', 25, 'ABC LTD'),
+    link('2', 'XYZ Ltd', 'company', 75, 'ABC LTD'),
+  ]
+
+  it('gives a company terminal owner the status "No owners entered"', () => {
+    const xyz = run(links).paths.find((p) => p.ownerName === 'XYZ Ltd')
+    expect(xyz?.effectivePercent).toBe(75)
+    expect(xyz?.status).toBe('No owners entered')
+    expect(xyz?.status).not.toBe('UBO')
+  })
+
+  it('leaves individuals on UBO / Below threshold', () => {
+    const statuses = run(links).paths.map((p) => [p.ownerName, p.status])
+    expect(statuses).toEqual([
+      ['XYZ Ltd', 'No owners entered'],
+      ['Masood', 'UBO'],
+    ])
+    const below = run(links, 10).paths.find((p) => p.ownerName === 'Masood')
+    expect(below?.status).toBe('UBO')
+  })
+
+  it('never emits "UBO" for a company anywhere in the result', () => {
+    const result = run(links)
+    const companyPaths = result.paths.filter((p) => p.ownerType === 'company')
+    expect(companyPaths.length).toBeGreaterThan(0)
+    expect(companyPaths.every((p) => p.status === 'No owners entered')).toBe(true)
+    expect(result.ubos.every((u) => u.type === 'individual')).toBe(true)
+  })
+})

@@ -52,7 +52,7 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
+      <div data-export-scroll className="overflow-x-auto">
         <table className="w-full min-w-[24rem] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -73,7 +73,7 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
         </table>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div data-export-hide className="flex items-center gap-3">
         <Button onClick={handleCopy}>Copy names</Button>
         {copied === 'done' ? (
           <span className="text-xs text-emerald-700">

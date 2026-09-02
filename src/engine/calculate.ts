@@ -132,13 +132,20 @@ export function calculate(
   const paths: OwnershipPath[] = rawPaths
     .map((raw): OwnershipPath => {
       const effectivePercent = round2(raw.fraction * 100)
+      const ownerType = graph.nodeByKey.get(raw.ownerKey)?.type ?? 'individual'
       return {
         ownerKey: raw.ownerKey,
         ownerName: nameOf(raw.ownerKey),
-        ownerType: graph.nodeByKey.get(raw.ownerKey)?.type ?? 'individual',
+        ownerType,
         chain: raw.chainKeys.map(nameOf),
         effectivePercent,
-        status: atLeast(effectivePercent, threshold) ? 'UBO' : 'Below threshold',
+        // A company at the end of a chain is a gap in the structure, not a UBO.
+        status:
+          ownerType === 'company'
+            ? 'No owners entered'
+            : atLeast(effectivePercent, threshold)
+              ? 'UBO'
+              : 'Below threshold',
       }
     })
     .sort(

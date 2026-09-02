@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * While a block is being captured for PNG/PDF, let its horizontal scrollers
+ * expand: a chart or table wider than the card would otherwise be cropped at
+ * the card's edge in the exported image.
+ */
+.exporting [data-export-scroll] {
+  overflow: visible !important;
+}

@@ -26,7 +26,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
 
   return (
     <div>
-      <div className="overflow-x-auto">
+      <div data-export-scroll className="overflow-x-auto">
         <svg
           width={layout.width}
           height={layout.height}
