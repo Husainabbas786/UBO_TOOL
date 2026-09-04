@@ -1,4 +1,9 @@
-import { formatPercent, type CalculationResult, type UboSummaryEntry } from '../../engine'
+import {
+  formatPercent,
+  type CalculationResult,
+  type ExcludedController,
+  type UboSummaryEntry,
+} from '../../engine'
 
 /**
  * How a beneficial owner qualifies, in words. Someone who qualifies purely on
@@ -14,6 +19,28 @@ function describeBasis(ubo: UboSummaryEntry, targetName: string): string {
     return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}, and control of ${controlled}`
   }
   return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}`
+}
+
+/** "A (5.00%)", "A (5.00%) and B (3.00%)", "A (…), B (…) and C (…)". */
+function listCompanies(companies: ExcludedController['companies']): string {
+  const parts = companies.map(
+    (company) =>
+      `${company.name} (${formatPercent(company.effectivePercent)}% of the Meydan FZ company)`,
+  )
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+/**
+ * Why a flagged controller was not counted. The chart badges everyone who was
+ * flagged, so without this line a reviewer sees a Control badge on the chart
+ * and finds nothing on the page explaining why it did not make them a UBO.
+ */
+function describeExclusion(entry: ExcludedController, threshold: number): string {
+  const plural = entry.companies.length > 1
+  return ` is flagged as controller of ${listCompanies(entry.companies)}, which ${
+    plural ? 'are each' : 'is'
+  } below the ${threshold}% threshold, so is not counted as a UBO.`
 }
 
 export function SummaryBlock({ result }: { result: CalculationResult }) {
@@ -50,6 +77,22 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {/* A badge on the chart with no explanation anywhere is exactly the gap
+          this closes: say who was flagged, over what, and why it fell short. */}
+      {result.excludedControllers.length > 0 ? (
+        <div className="rounded-card border border-purple bg-purple-t10 px-4 py-3">
+          <p className="text-body font-semibold text-purple">Controllers not counted</p>
+          <ul className="mt-1.5 space-y-1 text-body text-navy">
+            {result.excludedControllers.map((entry) => (
+              <li key={entry.key}>
+                <span className="font-semibold">{entry.name}</span>
+                {describeExclusion(entry, result.threshold)}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {/* The chain stops at a company nobody owns on paper: say so plainly. */}

@@ -4,6 +4,7 @@ import { validate } from './validate'
 import {
   EngineError,
   type CalculationResult,
+  type ExcludedController,
   type IntermediaryCompany,
   type OwnershipGraph,
   type OwnershipLinkInput,
@@ -239,6 +240,27 @@ export function calculate(
   }
   ubos.sort((a, b) => b.totalPercent - a.totalPercent || a.name.localeCompare(b.name))
 
+  /*
+   * Why a badged controller is not on the list.
+   *
+   * The chart marks everyone who was flagged, so a person whose control does
+   * not reach the target appears there with a Control badge and no UBO
+   * highlight. Left at that, a reviewer sees the badge and finds nothing
+   * anywhere saying why it did not count. These entries carry the reason.
+   */
+  const uboKeys = new Set(ubos.map((ubo) => ubo.key))
+  const excludedControllers: ExcludedController[] = graph.nodes
+    .filter((node) => node.type === 'individual' && node.isController && !uboKeys.has(node.key))
+    .map((node) => ({
+      key: node.key,
+      name: node.name,
+      companies: controlsFor(node.key).map((entityKey) => ({
+        name: nameOf(entityKey),
+        effectivePercent: shareOf(entityKey),
+      })),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
   const intermediaries: IntermediaryCompany[] = graph.nodes
     .filter((node) => node.type === 'company' && node.key !== target.key)
     .map((node) => ({
@@ -277,6 +299,7 @@ export function calculate(
     ubos,
     intermediaries,
     unidentified,
+    excludedControllers,
     entityCount: graph.nodes.length,
     pathCount: paths.length,
   }

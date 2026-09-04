@@ -145,6 +145,19 @@ export interface UnidentifiedOwnerGap {
   effectivePercent: number
 }
 
+/**
+ * A person flagged as a controller whose control does not reach the target: the
+ * companies they control all sit below the threshold, and they hold no
+ * qualifying stake of their own. The chart still badges them, so the Summary
+ * has to say why they were not counted.
+ */
+export interface ExcludedController {
+  key: string
+  name: string
+  /** Each company they were flagged as controlling, with its share of the target. */
+  companies: Array<{ name: string; effectivePercent: number }>
+}
+
 export interface CalculationResult {
   target: PartyNode
   /** The de-duplicated graph the result was computed from, for the chart. */
@@ -160,6 +173,8 @@ export interface CalculationResult {
   intermediaries: IntermediaryCompany[]
   /** Companies at or above the threshold whose own owners are missing. */
   unidentified: UnidentifiedOwnerGap[]
+  /** Flagged controllers whose control does not reach the target, and why. */
+  excludedControllers: ExcludedController[]
   /** Total parties considered, for the summary note. */
   entityCount: number
   /** Total paths considered, for the summary note. */

@@ -682,6 +682,69 @@ describe('control of an intermediary, measured against the threshold', () => {
     }
   })
 
+  it('says why an excluded controller was not counted, and stops once they qualify', () => {
+    const links = structure(15)
+
+    // At 25% Masood is left out, so the Summary has to explain the badge the
+    // chart still draws on him.
+    const standard = run(links, 25)
+    expect(standard.ubos.map((u) => u.name)).toEqual(['Husain'])
+    expect(standard.excludedControllers).toEqual([
+      { key: 'masood', name: 'Masood', companies: [{ name: 'XYZ Ltd', effectivePercent: 15 }] },
+    ])
+
+    // At 10% he is a UBO on his own line, so the note has nothing to say.
+    const highRisk = run(links, 10)
+    expect(highRisk.ubos.map((u) => u.name)).toContain('Masood')
+    expect(highRisk.excludedControllers).toEqual([])
+  })
+
+  it('leaves a controller of the target company out of the note at either threshold', () => {
+    const links = [
+      link('1', 'Husain', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ]
+    expect(run(links, 25).excludedControllers).toEqual([])
+    expect(run(links, 10).excludedControllers).toEqual([])
+  })
+
+  it('names every company behind an excluded controller, not just the first', () => {
+    const links = [
+      link('1', 'Husain', 'individual', 88, 'ABC LTD'),
+      link('2', 'Small Ltd', 'company', 7, 'ABC LTD'),
+      link('3', 'Tiny Ltd', 'company', 5, 'ABC LTD'),
+      link('4', 'Sara', 'individual', 100, 'Small Ltd'),
+      link('5', 'Layla', 'individual', 100, 'Tiny Ltd'),
+      link('6', 'Masood', 'individual', 0, 'Small Ltd', true),
+      link('7', 'Masood', 'individual', 0, 'Tiny Ltd', true),
+    ]
+    expect(run(links, 25).excludedControllers).toEqual([
+      {
+        key: 'masood',
+        name: 'Masood',
+        companies: [
+          { name: 'Small Ltd', effectivePercent: 7 },
+          { name: 'Tiny Ltd', effectivePercent: 5 },
+        ],
+      },
+    ])
+  })
+
+  it('keeps a flagged owner who qualifies on ownership out of the note', () => {
+    // Nadia owns 60% outright, so she is a UBO; her dropped control claim over
+    // a 5% company is not an exclusion to explain.
+    const links = [
+      link('1', 'Nadia', 'individual', 60, 'ABC LTD', true),
+      link('2', 'Small Ltd', 'company', 5, 'ABC LTD'),
+      link('3', 'Husain', 'individual', 35, 'ABC LTD'),
+      link('4', 'Sara', 'individual', 100, 'Small Ltd'),
+      link('5', 'Nadia', 'individual', 0, 'Small Ltd', true),
+    ]
+    const result = run(links, 25)
+    expect(result.ubos.map((u) => u.name)).toContain('Nadia')
+    expect(result.excludedControllers).toEqual([])
+  })
+
   it('drops a non-qualifying control claim from the basis of an owner who qualifies anyway', () => {
     // Nadia owns 60% of the target outright and also controls a 5% company.
     const links = [

@@ -45,10 +45,19 @@ export default function App() {
       ? chosenTargetKey
       : defaultTargetKey(graph)
 
-  // A stale result is worse than no result, so any edit clears it.
+  /*
+   * A stale result is worse than no result, so any edit clears it.
+   *
+   * The guard keeps the effect from scheduling a render on every keystroke to
+   * set state that is already null — there is only ever one result to clear.
+   * `result` and `engineError` are read but deliberately not dependencies: the
+   * effect should run on edits, not when it clears the state it is reading.
+   */
   useEffect(() => {
+    if (result === null && engineError === null) return
     setResult(null)
     setEngineError(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, threshold, targetKey])
 
   const anyRowDirty = rows.some(isRowDirty)
