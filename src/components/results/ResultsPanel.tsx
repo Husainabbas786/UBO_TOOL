@@ -34,7 +34,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
 
       <Card
         title="Ownership paths"
-        description="Every route from an ultimate owner down to the target entity."
+        description="Every route from an ultimate owner down to the Meydan FZ company."
         sectionRef={pathsRef}
         actions={
           <BlockActions blockRef={pathsRef} target={target} block="Paths" orientation="portrait" />

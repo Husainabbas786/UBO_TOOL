@@ -57,7 +57,7 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
           <thead>
             <tr className="border-b border-line text-left text-h4 font-medium text-navy">
               <th className="h-row pr-4 align-middle font-medium">Company</th>
-              <th className="h-row text-right align-middle font-medium">Effective % of target</th>
+              <th className="h-row text-right align-middle font-medium">Effective % of the Meydan FZ company</th>
             </tr>
           </thead>
           <tbody>

@@ -11,7 +11,14 @@ import {
   type CalculationResult,
   type ValidationIssue,
 } from './engine'
-import { blankRow, exampleRows, isRowDirty, type LinkRowState } from './lib/rows'
+import {
+  blankRow,
+  exampleRows,
+  hasNamedCompany,
+  isRowDirty,
+  nextCompanyToComplete,
+  type LinkRowState,
+} from './lib/rows'
 import { Blockers } from './components/Blockers'
 import { LinksBuilder } from './components/LinksBuilder'
 import { TargetSelect } from './components/TargetSelect'
@@ -66,6 +73,22 @@ export default function App() {
 
   const reasons = anyRowDirty ? blockingReasons(validation.errors, rows, incompleteRowIds) : []
   const canCalculate = validation.ok && targetKey !== null
+
+  /*
+   * Guide the agent through one company at a time.
+   *
+   * The mistake this prevents is real and expensive: with an empty company box
+   * on every row, shareholders of an intermediary get typed against the Meydan
+   * FZ company, whose owners then total 200% and whose structure is simply
+   * wrong. A new row therefore arrives already pointed at the company still
+   * short of 100% — the Meydan FZ company first, then each intermediary in
+   * turn — and the name stays editable, because it is a suggestion and not a
+   * rule.
+   */
+  const handleAddRow = () =>
+    setRows((current) => [...current, blankRow(nextCompanyToComplete(current, targetKey) ?? '')])
+
+  const entityPlaceholder = hasNamedCompany(rows) ? 'Company name' : 'Meydan FZ company name'
 
   /**
    * Control is a property of a person, not of a row. Toggling the box therefore
@@ -131,9 +154,10 @@ export default function App() {
             incompleteRowIds={anyRowDirty ? incompleteRowIds : new Set<string>()}
             companyTotals={totalsWithStatus}
             partyIssues={partyIssues}
+            entityPlaceholder={entityPlaceholder}
             onChangeRow={handleChangeRow}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
-            onAddRow={() => setRows((current) => [...current, blankRow()])}
+            onAddRow={handleAddRow}
           />
         </Card>
 
@@ -141,7 +165,7 @@ export default function App() {
           <Card title="Threshold">
             <ThresholdSelect value={threshold} onChange={setThreshold} />
           </Card>
-          <Card title="Target entity">
+          <Card title="Meydan FZ company">
             <TargetSelect
               candidates={graph.targetCandidates}
               value={targetKey}

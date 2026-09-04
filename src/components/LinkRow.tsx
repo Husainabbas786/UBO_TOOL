@@ -1,6 +1,6 @@
 import type { PartyType, ValidationIssue } from '../engine'
 import type { LinkRowState } from '../lib/rows'
-import { withOwnerType, withPercentText } from '../lib/rows'
+import { withEntityName, withOwnerType, withPercentText } from '../lib/rows'
 import { Button, ErrorText, TextInput } from './ui'
 
 interface LinkRowProps {
@@ -9,6 +9,8 @@ interface LinkRowProps {
   issues: ValidationIssue[]
   /** Neutral note for a row the user has not filled in yet. */
   hint?: string
+  /** What the empty company field should ask for, given what is entered so far. */
+  entityPlaceholder: string
   canRemove: boolean
   onChange: (row: LinkRowState) => void
   onRemove: () => void
@@ -40,7 +42,16 @@ function TypeToggle({ value, onChange }: { value: PartyType; onChange: (t: Party
   )
 }
 
-export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemove }: LinkRowProps) {
+export function LinkRow({
+  row,
+  index,
+  issues,
+  hint,
+  entityPlaceholder,
+  canRemove,
+  onChange,
+  onRemove,
+}: LinkRowProps) {
   const has = (code: ValidationIssue['code']) => issues.some((issue) => issue.code === code)
 
   return (
@@ -51,7 +62,7 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
         <div className="min-w-[8rem] flex-1">
           <TextInput
             aria-label={`Owner name, row ${index + 1}`}
-            placeholder="Owner name"
+            placeholder="Shareholder"
             value={row.ownerName}
             invalid={has('empty-owner-name') || has('self-ownership')}
             onChange={(e) => onChange({ ...row, ownerName: e.target.value })}
@@ -80,11 +91,11 @@ export function LinkRow({ row, index, issues, hint, canRemove, onChange, onRemov
 
         <div className="min-w-[8rem] flex-1">
           <TextInput
-            aria-label={`Entity name, row ${index + 1}`}
-            placeholder="Company name"
+            aria-label={`Company name, row ${index + 1}`}
+            placeholder={entityPlaceholder}
             value={row.entityName}
             invalid={has('empty-entity-name') || has('self-ownership')}
-            onChange={(e) => onChange({ ...row, entityName: e.target.value })}
+            onChange={(e) => onChange(withEntityName(row, e.target.value))}
           />
         </div>
 

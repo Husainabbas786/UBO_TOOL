@@ -158,7 +158,8 @@ export function validate(links: OwnershipLinkInput[], graph?: OwnershipGraph): V
   if (resolved.links.length > 0 && resolved.targetCandidates.length === 0) {
     errors.push({
       code: 'no-target',
-      message: 'No target entity found. Every company entered owns something else.',
+      message:
+        'No Meydan FZ company found. Every company entered owns something else, so none of them can be the company being analysed.',
     })
   }
 

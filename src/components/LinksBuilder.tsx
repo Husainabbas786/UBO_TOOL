@@ -13,6 +13,8 @@ interface LinksBuilderProps {
   companyTotals: CompanyTotal[]
   /** Issues that belong to a party rather than a row, e.g. type conflicts. */
   partyIssues: ValidationIssue[]
+  /** What an empty company field should ask for, given what is entered so far. */
+  entityPlaceholder: string
   onChangeRow: (row: LinkRowState) => void
   onRemoveRow: (id: string) => void
   onAddRow: () => void
@@ -24,6 +26,7 @@ export function LinksBuilder({
   incompleteRowIds,
   companyTotals,
   partyIssues,
+  entityPlaceholder,
   onChangeRow,
   onRemoveRow,
   onAddRow,
@@ -40,6 +43,7 @@ export function LinksBuilder({
             index={index}
             issues={issuesByRow.get(row.id) ?? []}
             hint={incompleteRowIds.has(row.id) ? 'Complete this row or remove it.' : undefined}
+            entityPlaceholder={entityPlaceholder}
             canRemove={rows.length > 1}
             onChange={onChangeRow}
             onRemove={() => onRemoveRow(row.id)}

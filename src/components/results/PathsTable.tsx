@@ -28,7 +28,7 @@ export function PathsTable({ result }: { result: CalculationResult }) {
           <tr className="border-b border-line text-left text-h4 font-medium text-navy">
             <th className="h-row pr-4 align-middle font-medium">Ultimate owner</th>
             <th className="h-row pr-4 align-middle font-medium">Path</th>
-            <th className="h-row pr-4 align-middle font-medium">Target entity</th>
+            <th className="h-row pr-4 align-middle font-medium">Meydan FZ company</th>
             <th className="h-row pr-4 text-right align-middle font-medium">Effective %</th>
             <th className="h-row align-middle font-medium">Status</th>
           </tr>
