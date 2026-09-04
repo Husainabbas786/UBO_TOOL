@@ -31,6 +31,14 @@ function RingPattern() {
  * only ever scaled down. The rule sits 28px from each neighbour, and the whole
  * lock-up is vertically centred in the band.
  */
+/*
+ * React 18 does not know the camelCase `fetchPriority` prop and warns about it
+ * on every page load; the lowercase DOM attribute is passed straight through
+ * without complaint. React 19 accepts the camelCase form natively, so this can
+ * go back to a plain prop whenever we move.
+ */
+const HIGH_PRIORITY: Record<string, string> = { fetchpriority: 'high' }
+
 export function Header() {
   return (
     <header className="border-b border-line bg-white">
@@ -45,7 +53,7 @@ export function Header() {
               width={892}
               height={324}
               decoding="sync"
-              fetchPriority="high"
+              {...HIGH_PRIORITY}
             />
             <span className="h-14 w-px shrink-0 bg-line" aria-hidden />
             <div>
