@@ -37,6 +37,20 @@
   --row-height: 46px;
 
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Mirrors pattern.opacity in tokens.ts — the masthead's ring motif. */
+  --ring-strength: 0.2;
+}
+
+/*
+ * Below the band-label breakpoint (layout.bandLabelFrom) the masthead drops its
+ * right-hand label, so the rings sit closer to the title and are quietened to
+ * pattern.opacityCompact to stay out of its way.
+ */
+@media (max-width: 899.98px) {
+  :root {
+    --ring-strength: 0.12;
+  }
 }
 
 @layer base {

@@ -84,6 +84,8 @@ export const gradient = {
    * green leads and holds most of the button.
    */
   buttonGreen: [brand.darkGreen, brand.mfzGreen],
+  /** The 3px keyline under the masthead: the band's anchor, full bleed. */
+  headerKeyline: [accent.deepTeal, brand.mfzBlue, brand.mfzGreen],
 } as const
 
 export const font = {
@@ -126,10 +128,15 @@ export const table = {
 export const layout = {
   pageWidth: '1320px',
   resultsWidth: '1440px',
-  headerHeight: '104px',
+  headerHeight: '112px',
   logoHeight: '64px',
   /** Below this the ownership row is allowed to wrap onto a second line. */
   rowNoWrapFrom: '1100px',
+  /**
+   * Below this the masthead drops its right-hand label and quietens the rings:
+   * at that width the two halves would collide rather than balance.
+   */
+  bandLabelFrom: '900px',
 } as const
 
 /**
@@ -148,10 +155,28 @@ export const chart = {
 } as const
 
 /**
- * The one decorative moment: concentric rings in the header band. Held at 10%
- * so it reads as texture behind the masthead rather than as a second element.
+ * The one decorative moment: concentric rings in the header band, echoing the
+ * ring in the logo. Anchored to the right edge with the widest ring running off
+ * it, so the motif reads as deliberate rather than as a stray watermark — held
+ * at a fifth strength, which is enough to see and too little to compete with
+ * the masthead. Narrow screens take the quieter setting.
  */
 export const pattern = {
   ring: accent.steelBlue,
-  opacity: 0.1,
+  ringAlt: accent.deepTeal,
+  opacity: 0.2,
+  opacityCompact: 0.12,
+} as const
+
+/**
+ * The masthead wash: clean white under the logo, easing to the palest sky at
+ * roughly a third strength on the right. Light enough that navy and MFZ blue
+ * hold AA over every part of it.
+ */
+export const headerWash = {
+  from: neutral.white,
+  /** paleSky at ~35% strength over white. */
+  to: mixWithWhite(accent.paleSky, 0.35),
+  /** The logo sits on flat white; the wash starts after it. */
+  holdWhiteTo: '38%',
 } as const

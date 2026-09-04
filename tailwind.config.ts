@@ -18,6 +18,8 @@ export default {
       screens: {
         // The ownership row stops wrapping from here up.
         wide: layout.rowNoWrapFrom,
+        // The masthead carries its right-hand label from here up.
+        band: layout.bandLabelFrom,
       },
       maxWidth: {
         page: layout.pageWidth,
