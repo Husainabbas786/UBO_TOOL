@@ -127,6 +127,10 @@ export function calculate(
   const nameOf = (key: string): string => graph.nodeByKey.get(key)?.name ?? key
   const { threshold } = options
 
+  const shares = sharesOfTarget(graph, target.key)
+  /** Effective % of the target held by a party, rounded the way it is shown. */
+  const shareOf = (key: string): number => round2((shares.get(key) ?? 0) * 100)
+
   const rawPaths = enumeratePaths(graph, target.key)
 
   const paths: OwnershipPath[] = rawPaths
@@ -176,23 +180,38 @@ export function calculate(
     if (!link.declaredController) continue
     const bucket = link.isControl ? controlOnly : declaredOn
     const list = bucket.get(link.ownerKey) ?? []
-    const entityName = nameOf(link.entityKey)
-    if (!list.includes(entityName)) list.push(entityName)
+    if (!list.includes(link.entityKey)) list.push(link.entityKey)
     bucket.set(link.ownerKey, list)
   }
   const controlsFor = (key: string): string[] =>
     controlOnly.get(key) ?? declaredOn.get(key) ?? []
 
+  /*
+   * Control only reaches the target through a company that matters.
+   *
+   * Controlling the target company is control of the target, full stop. But
+   * controlling an intermediary only carries down to the target if that
+   * intermediary itself holds a qualifying stake — the same test, and the same
+   * effective %, that puts it on the screening list. Control of a company that
+   * holds 2% of the target does not make anyone a beneficial owner of it, so
+   * switching the threshold can legitimately change who qualifies.
+   */
+  const qualifyingControlKeys = (key: string): string[] =>
+    controlsFor(key).filter(
+      (entityKey) => entityKey === target.key || atLeast(shareOf(entityKey), threshold),
+    )
+
   const toEntry = (node: PartyNode, fraction: number, pathCount: number): UboSummaryEntry => {
     const totalPercent = round2(fraction * 100)
+    const controls = qualifyingControlKeys(node.key).map(nameOf)
     return {
       key: node.key,
       name: node.name,
       type: node.type,
       totalPercent,
-      basis: basisFor(atLeast(totalPercent, threshold), node.isController),
+      basis: basisFor(atLeast(totalPercent, threshold), controls.length > 0),
       isController: node.isController,
-      controls: controlsFor(node.key),
+      controls,
       pathCount,
     }
   }
@@ -205,26 +224,27 @@ export function calculate(
     })
     .sort((a, b) => b.totalPercent - a.totalPercent || a.name.localeCompare(b.name))
 
-  // A UBO is a natural person: qualifying by effective ownership, by the manual
-  // control flag, or both. Controllers count even with no path to the target.
+  // A UBO is a natural person: qualifying by effective ownership, by qualifying
+  // control, or both. A qualifying controller counts even with no ownership
+  // path to the target at all.
   const ubos: UboSummaryEntry[] = owners.filter(
     (owner) =>
-      owner.type === 'individual' && (atLeast(owner.totalPercent, threshold) || owner.isController),
+      owner.type === 'individual' &&
+      (atLeast(owner.totalPercent, threshold) || owner.basis !== 'Ownership'),
   )
   for (const node of graph.nodes) {
-    if (node.type !== 'individual' || !node.isController) continue
+    if (node.type !== 'individual' || qualifyingControlKeys(node.key).length === 0) continue
     if (ubos.some((ubo) => ubo.key === node.key)) continue
     ubos.push(toEntry(node, 0, 0))
   }
   ubos.sort((a, b) => b.totalPercent - a.totalPercent || a.name.localeCompare(b.name))
 
-  const shares = sharesOfTarget(graph, target.key)
   const intermediaries: IntermediaryCompany[] = graph.nodes
     .filter((node) => node.type === 'company' && node.key !== target.key)
     .map((node) => ({
       key: node.key,
       name: node.name,
-      effectivePercent: round2((shares.get(node.key) ?? 0) * 100),
+      effectivePercent: shareOf(node.key),
     }))
     .filter(
       (company) => company.effectivePercent > 0 && atLeast(company.effectivePercent, threshold),
@@ -243,7 +263,7 @@ export function calculate(
     .map((node) => ({
       key: node.key,
       name: node.name,
-      effectivePercent: round2((shares.get(node.key) ?? 0) * 100),
+      effectivePercent: shareOf(node.key),
     }))
     .filter((gap) => gap.effectivePercent > 0 && atLeast(gap.effectivePercent, threshold))
     .sort((a, b) => b.effectivePercent - a.effectivePercent || a.name.localeCompare(b.name))

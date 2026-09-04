@@ -286,7 +286,7 @@ describe('control-based UBOs', () => {
     expect(nadia?.basis).toBe('Ownership + Control')
   })
 
-  it('includes a controller with no path to the target at 0.00%', () => {
+  it('leaves out a controller of a company with no stake in the target', () => {
     const links = [
       link('1', 'Masood', 'individual', 100, 'ABC LTD'),
       link('2', 'Nadia', 'individual', 100, 'Unrelated Ltd', true),
@@ -294,9 +294,9 @@ describe('control-based UBOs', () => {
     const graph = buildGraph(links)
     const result = calculate(links, { targetKey: 'abc ltd', threshold: 25 })
     expect(graph.targetCandidates.map((n) => n.name)).toEqual(['ABC LTD', 'Unrelated Ltd'])
-    const nadia = result.ubos.find((u) => u.name === 'Nadia')
-    expect(nadia?.totalPercent).toBe(0)
-    expect(nadia?.basis).toBe('Control')
+    // Unrelated Ltd holds nothing in ABC LTD, so controlling it says nothing
+    // about who benefits from ABC LTD.
+    expect(result.ubos.map((u) => u.name)).toEqual(['Masood'])
   })
 
   it('ignores the controller flag on a company', () => {
@@ -622,5 +622,79 @@ describe('0% controllers, the way a first-time user enters them', () => {
     expect(masood?.controls).toEqual(['XYZ Ltd'])
     // XYZ Ltd holds 30%, so it is above the threshold and gets screened.
     expect(result.intermediaries.map((c) => c.name)).toEqual(['XYZ Ltd'])
+  })
+})
+
+/*
+ * Control of an intermediary only reaches the target when the intermediary
+ * itself holds a qualifying stake — the same test that puts it on the
+ * screening list. Control of the target company always qualifies.
+ */
+describe('control of an intermediary, measured against the threshold', () => {
+  /** Sara owns the intermediary, Masood controls it without owning shares. */
+  const structure = (intermediaryStake: number) => [
+    link('1', 'Husain', 'individual', 100 - intermediaryStake, 'ABC LTD'),
+    link('2', 'XYZ Ltd', 'company', intermediaryStake, 'ABC LTD'),
+    link('3', 'Sara', 'individual', 100, 'XYZ Ltd'),
+    link('4', 'Masood', 'individual', 0, 'XYZ Ltd', true),
+  ]
+
+  it('qualifies the controller of an intermediary sitting exactly at the threshold', () => {
+    const result = run(structure(25), 25)
+    const masood = result.ubos.find((u) => u.name === 'Masood')
+    expect(masood?.basis).toBe('Control')
+    expect(masood?.totalPercent).toBe(0)
+    expect(masood?.controls).toEqual(['XYZ Ltd'])
+    expect(result.intermediaries.map((c) => c.name)).toEqual(['XYZ Ltd'])
+  })
+
+  it('excludes the controller of a below-threshold intermediary', () => {
+    const result = run(structure(15), 25)
+    expect(result.ubos.map((u) => u.name)).toEqual(['Husain'])
+    // The rule is exactly the screening-list rule: no screening, no UBO.
+    expect(result.intermediaries).toHaveLength(0)
+  })
+
+  it('brings that same controller back when the threshold drops to 10%', () => {
+    const links = structure(15)
+    expect(run(links, 25).ubos.map((u) => u.name)).toEqual(['Husain'])
+
+    const highRisk = run(links, 10)
+    expect(highRisk.ubos.map((u) => [u.name, u.basis])).toEqual([
+      ['Husain', 'Ownership'],
+      ['Sara', 'Ownership'],
+      ['Masood', 'Control'],
+    ])
+    expect(highRisk.intermediaries.map((c) => [c.name, c.effectivePercent])).toEqual([
+      ['XYZ Ltd', 15],
+    ])
+  })
+
+  it('still qualifies a controller of the target company itself', () => {
+    const links = [
+      link('1', 'Husain', 'individual', 100, 'ABC LTD'),
+      link('2', 'Nadia', 'individual', 0, 'ABC LTD', true),
+    ]
+    for (const threshold of [25, 10]) {
+      const nadia = run(links, threshold).ubos.find((u) => u.name === 'Nadia')
+      expect(nadia?.basis).toBe('Control')
+      expect(nadia?.controls).toEqual(['ABC LTD'])
+    }
+  })
+
+  it('drops a non-qualifying control claim from the basis of an owner who qualifies anyway', () => {
+    // Nadia owns 60% of the target outright and also controls a 5% company.
+    const links = [
+      link('1', 'Nadia', 'individual', 60, 'ABC LTD', true),
+      link('2', 'Small Ltd', 'company', 5, 'ABC LTD'),
+      link('3', 'Husain', 'individual', 35, 'ABC LTD'),
+      link('4', 'Sara', 'individual', 100, 'Small Ltd'),
+      link('5', 'Nadia', 'individual', 0, 'Small Ltd', true),
+    ]
+    const nadia = run(links, 25).ubos.find((u) => u.name === 'Nadia')
+    expect(nadia?.basis).toBe('Ownership')
+    expect(nadia?.controls).toEqual([])
+    // The flag itself is still recorded, so the chart keeps its Control badge.
+    expect(nadia?.isController).toBe(true)
   })
 })

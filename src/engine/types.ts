@@ -111,8 +111,17 @@ export interface UboSummaryEntry {
   /** Sum of this owner's path percentages, rounded to 2 decimals. */
   totalPercent: number
   basis: UboBasis
+  /**
+   * The Controller box was ticked for this person somewhere. Whether that
+   * control actually qualifies them as a UBO of the target is said by `basis`:
+   * control of an intermediary only counts when the intermediary itself holds
+   * a qualifying stake.
+   */
   isController: boolean
-  /** Companies this person was flagged as controlling, in display spelling. */
+  /**
+   * The companies whose control qualifies this person, in display spelling —
+   * the target itself, and any intermediary at or above the threshold.
+   */
   controls: string[]
   pathCount: number
 }
