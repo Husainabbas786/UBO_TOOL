@@ -1,7 +1,13 @@
 import { useMemo } from 'react'
 import type { CalculationResult } from '../../engine'
 import { chart as palette } from '../../theme/tokens'
-import { layoutChart, type ChartNode } from '../../lib/chartLayout'
+import {
+  layoutChart,
+  NAME_FONT_SIZE,
+  NAME_LINE_HEIGHT,
+  NODE_TEXT_X,
+  type ChartNode,
+} from '../../lib/chartLayout'
 import { BuildingGlyph, PersonGlyph } from './icons'
 
 /**
@@ -15,10 +21,8 @@ function paletteFor(node: ChartNode) {
   return palette.individual
 }
 
-/** SVG cannot ellipsize, so long names are trimmed to fit the node box. */
-function fit(name: string, max = 18): string {
-  return name.length <= max ? name : `${name.slice(0, max - 1)}…`
-}
+/** Matches the badge extents chartLayout reserves when cropping the drawing. */
+const BADGE_INSET = 52
 
 export function OwnershipChart({ result }: { result: CalculationResult }) {
   const layout = useMemo(() => layoutChart(result), [result])
@@ -26,15 +30,19 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
   return (
     <div>
       <div data-export-scroll className="overflow-x-auto">
+        {/* The drawing is cropped to its own extents, so centring it here is
+            what keeps an exported chart from leaning against the left edge of
+            the card. Over-constrained margins collapse on the right, so a wide
+            chart still starts at x=0 and scrolls rather than losing its left. */}
         <svg
           width={layout.width}
           height={layout.height}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
+          style={{ background: palette.surface, display: 'block', marginInline: 'auto' }}
           role="img"
           aria-label={`Ownership structure of ${result.target.name}`}
           shapeRendering="geometricPrecision"
           textRendering="optimizeLegibility"
-          style={{ background: palette.surface }}
         >
           <defs>
             <marker
@@ -98,7 +106,12 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
 
           {layout.nodes.map((node) => {
             const colours = paletteFor(node)
-            const subLabel = node.isTarget ? 'Target entity' : node.effectiveLabel
+            const { subLabel, nameLines } = node
+            // Centre the name block, plus its sub-label, within the box.
+            const blockHeight =
+              nameLines.length * NAME_LINE_HEIGHT + (subLabel ? NAME_LINE_HEIGHT : 0)
+            const firstBaseline =
+              node.y + (node.height - blockHeight) / 2 + NAME_FONT_SIZE
             return (
               <g key={node.key}>
                 <rect
@@ -118,19 +131,22 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                     <BuildingGlyph colour={colours.icon} />
                   )}
                 </g>
-                <text
-                  x={node.x + 38}
-                  y={node.y + (subLabel ? 24 : 34)}
-                  fontSize={12.5}
-                  fontWeight={600}
-                  fill={colours.text}
-                >
-                  {fit(node.name)}
-                </text>
+                {nameLines.map((line, index) => (
+                  <text
+                    key={index}
+                    x={node.x + NODE_TEXT_X}
+                    y={Math.round(firstBaseline + index * NAME_LINE_HEIGHT)}
+                    fontSize={NAME_FONT_SIZE}
+                    fontWeight={600}
+                    fill={colours.text}
+                  >
+                    {line}
+                  </text>
+                ))}
                 {subLabel ? (
                   <text
-                    x={node.x + 38}
-                    y={node.y + 40}
+                    x={node.x + NODE_TEXT_X}
+                    y={Math.round(firstBaseline + nameLines.length * NAME_LINE_HEIGHT)}
                     fontSize={11}
                     fill={node.isTarget ? '#FFFFFF' : '#6A7C8F'}
                     opacity={node.isTarget ? 0.85 : 1}
@@ -142,7 +158,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                 {node.isController ? (
                   <g>
                     <rect
-                      x={node.x + node.width - 52}
+                      x={node.x + node.width - BADGE_INSET}
                       y={node.y - 9}
                       width={48}
                       height={18}
@@ -150,7 +166,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                       fill={palette.controlBadge.fill}
                     />
                     <text
-                      x={node.x + node.width - 28}
+                      x={node.x + node.width - BADGE_INSET + 24}
                       y={node.y + 3}
                       textAnchor="middle"
                       fontSize={10}
@@ -186,7 +202,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-3 rounded bg-navy" />
-          Target entity
+          Meydan FZ company
         </span>
         <span className="inline-flex items-center gap-1.5">
           <svg width={22} height={6} viewBox="0 0 22 6">
