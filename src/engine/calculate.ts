@@ -148,7 +148,7 @@ export function calculate(
 ): CalculationResult {
   const graph = buildGraph(links)
   const relatedParties = options.relatedParties ?? []
-  const validation = validate(links, graph, relatedParties)
+  const validation = validate(links, graph, relatedParties, options.targetKey)
   if (!validation.ok) {
     throw new EngineError(
       'Cannot calculate: the ownership structure has unresolved errors.',

@@ -105,8 +105,15 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
     // so the controller and nominee flags on it are not read.
     const isRole = entityKind !== 'company'
     const nomineeTicked = !isRole && (link.ownerIsNominee ?? false)
+    /*
+     * A control claim, once the rows that cannot carry one are excluded. Shares
+     * held on paper for somebody else are the opposite claim to holding control
+     * of them, so a nominee row never flags its owner as a controller — on the
+     * link, or on the person.
+     */
+    const claimsControl = !isRole && !nomineeTicked && link.ownerIsController
 
-    const owner = upsert(link.ownerName, link.ownerType, !isRole && link.ownerIsController)
+    const owner = upsert(link.ownerName, link.ownerType, claimsControl)
     const entity = upsert(link.entityName, 'company', false)
     const control = isControlRow(link) && !isRole
 
@@ -133,7 +140,7 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
       // An empty percentage on a control or role row normalises to a clean 0.
       percent: control || isRole ? 0 : link.percent,
       isControl: control,
-      declaredController: !isRole && !nomineeTicked && link.ownerType === 'individual' && link.ownerIsController,
+      declaredController: claimsControl && link.ownerType === 'individual',
       isRole,
       role: isRole && isRoleValid(entityKind, link.role) ? link.role : null,
       nominatorKey,
@@ -147,11 +154,20 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
 
   /*
    * A company that owns nothing is a candidate for the Meydan FZ company.
-   * Control and role links are not shareholdings, and a nominee's holding
-   * belongs to its nominator, so none of the three disqualifies a candidate.
-   * A trust or foundation is never the company being analysed.
+   * Control and role links are not shareholdings, so neither disqualifies a
+   * candidate, and a trust or foundation is never the company being analysed.
+   *
+   * A nominee holding disqualifies *both* ends: the nominator, who owns it
+   * beneficially, and the nominee, who owns it on paper. A nominee company
+   * holds shares in something, and a company that holds shares in something is
+   * not the company we are analysing — however little of it is really theirs.
    */
-  const owners = new Set(graphLinks.filter(isEconomic).map(beneficialOwnerKey))
+  const owners = new Set<string>()
+  for (const link of graphLinks) {
+    if (!isEconomic(link)) continue
+    owners.add(link.ownerKey)
+    owners.add(beneficialOwnerKey(link))
+  }
   const nodes = [...nodeByKey.values()]
 
   return {

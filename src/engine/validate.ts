@@ -31,6 +31,8 @@ export function validate(
   links: OwnershipLinkInput[],
   graph?: OwnershipGraph,
   relatedParties: RelatedPartyLinkInput[] = [],
+  /** The company being analysed, which cannot be a member of a related group. */
+  targetKey?: string | null,
 ): ValidationResult {
   const resolved = graph ?? buildGraph(links)
   const errors: ValidationIssue[] = []
@@ -271,7 +273,7 @@ export function validate(
     })
   }
 
-  errors.push(...validateRelatedParties(relatedParties, resolved))
+  errors.push(...validateRelatedParties(relatedParties, resolved, targetKey ?? null))
 
   return { ok: errors.length === 0, errors, warnings }
 }
@@ -284,6 +286,7 @@ export function validate(
 function validateRelatedParties(
   relatedParties: RelatedPartyLinkInput[],
   graph: OwnershipGraph,
+  targetKey: string | null,
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = []
 
@@ -293,6 +296,20 @@ function validateRelatedParties(
 
     const label = `Related-party link ${index + 1}`
     for (const name of names) {
+      /*
+       * The company being analysed holds 100% of itself, so linking it to a
+       * shareholder would carry any group straight past the threshold and make
+       * beneficial owners of everyone in it. It is what the group is measured
+       * against, never a member of one.
+       */
+      if (targetKey !== null && toKey(name) === targetKey) {
+        issues.push({
+          code: 'related-party-target',
+          message: `${label}: ${name} is the Meydan FZ company itself and cannot be linked. Link its shareholders instead.`,
+          relatedId: group.id,
+        })
+        continue
+      }
       if (graph.nodeByKey.has(toKey(name))) continue
       issues.push({
         code: 'related-party-unknown',

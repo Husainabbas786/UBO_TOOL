@@ -356,6 +356,19 @@ describe('nominee shareholders', () => {
     expect(result.unidentified.map((g) => [g.name, g.effectivePercent])).toEqual([['XYZ Ltd', 100]])
   })
 
+  it('lets the nominee flag win over a stale controller tick on the same row', () => {
+    // The two are opposite claims, and the builder never shows both boxes at
+    // once. If the flags ever disagree the shares still move to the nominator.
+    const links: OwnershipLinkInput[] = [
+      { ...nominee('Ali Hassan', 100, 'ABC LTD', 'Husain'), ownerIsController: true },
+    ]
+    const graph = buildGraph(links)
+    expect(graph.links[0]?.isControl).toBe(false)
+    expect(graph.links[0]?.declaredController).toBe(false)
+    expect(graph.nodeByKey.get('ali hassan')?.isController).toBe(false)
+    expect(uboNames(links)).toEqual(['Husain'])
+  })
+
   it('blocks a nominee row with no nominator named', () => {
     const links: OwnershipLinkInput[] = [
       { ...owns('Ali Hassan', 'individual', 100, 'ABC LTD'), ownerIsNominee: true },
@@ -567,5 +580,44 @@ describe('related-party aggregation', () => {
 
   it('ignores a link nobody has filled in yet', () => {
     expect(validate(spouses, undefined, [related('', '', '')]).ok).toBe(true)
+  })
+
+  it('refuses to link the Meydan FZ company itself', () => {
+    /*
+     * The target holds 100% of itself, so a group containing it would clear any
+     * threshold and make beneficial owners of everyone in it. Blocking it is
+     * what keeps aggregation from inventing UBOs.
+     */
+    const result = validate(spouses, undefined, [related('Spouses', 'ABC LTD', 'Layla')], 'abc ltd')
+    expect(result.ok).toBe(false)
+    expect(result.errors.some((e) => e.code === 'related-party-target')).toBe(true)
+    expect(() =>
+      run(spouses, 25, [related('Spouses', 'ABC LTD', 'Layla')]),
+    ).toThrow(/unresolved errors/)
+  })
+})
+
+describe('the Meydan FZ company dropdown', () => {
+  it('never offers a company that holds shares on paper as a nominee', () => {
+    const links: OwnershipLinkInput[] = [
+      {
+        ...owns('Nominee Services Ltd', 'company', 60, 'ABC LTD'),
+        ownerIsNominee: true,
+        nominatorName: 'Husain',
+        nominatorType: 'individual',
+      },
+      owns('Masood', 'individual', 40, 'ABC LTD'),
+      owns('Bob', 'individual', 100, 'Nominee Services Ltd'),
+    ]
+    const graph = buildGraph(links)
+    expect(graph.targetCandidates.map((c) => c.name)).toEqual(['ABC LTD'])
+
+    // The shares are Husain's, so Bob — who owns the nominee company — holds
+    // nothing of the target through it.
+    const result = run(links)
+    expect(result.ubos.map((u) => [u.name, u.totalPercent])).toEqual([
+      ['Husain', 60],
+      ['Masood', 40],
+    ])
   })
 })

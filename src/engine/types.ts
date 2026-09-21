@@ -132,6 +132,7 @@ export type ValidationCode =
   | 'self-nomination'
   | 'related-party-too-few'
   | 'related-party-unknown'
+  | 'related-party-target'
 
 export interface ValidationIssue {
   code: ValidationCode

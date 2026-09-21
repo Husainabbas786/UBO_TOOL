@@ -45,10 +45,6 @@ export default function App() {
   const graph = useMemo(() => buildGraph(rows), [rows])
   /** Only the links the agent has actually started; a blank one is ignored. */
   const relatedParties = useMemo(() => relatedRows.filter(isRelatedRowDirty), [relatedRows])
-  const validation = useMemo(
-    () => validate(rows, graph, relatedParties),
-    [rows, graph, relatedParties],
-  )
   const totals = useMemo(() => companyTotals(graph), [graph])
 
   /*
@@ -74,6 +70,13 @@ export default function App() {
     chosenTargetKey && graph.targetCandidates.some((c) => c.key === chosenTargetKey)
       ? chosenTargetKey
       : defaultTargetKey(graph)
+
+  // Validation needs the target: the company being analysed holds 100% of
+  // itself, so it can never be a member of a related-party group.
+  const validation = useMemo(
+    () => validate(rows, graph, relatedParties, targetKey),
+    [rows, graph, relatedParties, targetKey],
+  )
 
   /*
    * A stale result is worse than no result, so any edit clears it.
@@ -135,6 +138,10 @@ export default function App() {
    * Control is a property of a person, not of a row. Toggling the box therefore
    * updates every row where the same individual appears, so the boxes can never
    * disagree with each other or with what the engine concludes.
+   *
+   * A nominee row is left alone. Shares held on paper for somebody else are the
+   * opposite claim to holding control of them, and a row carrying both flags
+   * would show neither box — leaving it stuck with no way to untick either.
    */
   const handleChangeRow = (updated: LinkRowState) => {
     setRows((current) => {
@@ -145,7 +152,7 @@ export default function App() {
       const ownerKey = toKey(updated.ownerName)
       if (!toggledControl || updated.ownerType !== 'individual' || ownerKey === '') return next
       return next.map((row) =>
-        row.ownerType === 'individual' && toKey(row.ownerName) === ownerKey
+        row.ownerType === 'individual' && !row.ownerIsNominee && toKey(row.ownerName) === ownerKey
           ? { ...row, ownerIsController: updated.ownerIsController }
           : row,
       )
@@ -234,7 +241,9 @@ export default function App() {
         >
           <RelatedParties
             rows={relatedRows}
-            partyNames={graph.nodes.map((node) => node.name)}
+            partyNames={graph.nodes
+              .filter((node) => node.key !== targetKey)
+              .map((node) => node.name)}
             issues={relatedIssues}
             onChange={handleChangeRelatedRow}
             onRemove={(id) => setRelatedRows((current) => current.filter((row) => row.id !== id))}
