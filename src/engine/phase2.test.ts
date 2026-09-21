@@ -440,6 +440,38 @@ describe('related-party aggregation', () => {
     expect(layla?.pathCount).toBe(1)
   })
 
+  it('marks a group-qualified member’s path as captured, not merely below', () => {
+    /*
+     * The summary calls Layla a UBO; her own 5% does not reach the threshold.
+     * The paths table has to say both, or the two blocks contradict each other
+     * on the same page.
+     */
+    const result = run(spouses, 25, [related('Spouses', 'Husain', 'Layla')])
+    const statusOf = (name: string) => result.paths.find((p) => p.ownerName === name)?.status
+
+    expect(statusOf('Layla')).toBe('Below threshold (UBO via group)')
+    expect(statusOf('Husain')).toBe('Below threshold (UBO via group)')
+    // Masood clears the threshold on his own stake, so his path is unchanged.
+    expect(statusOf('Masood')).toBe('UBO')
+
+    // Without the link the same two paths are plainly below the threshold.
+    const unlinked = run(spouses)
+    expect(unlinked.paths.find((p) => p.ownerName === 'Layla')?.status).toBe('Below threshold')
+    expect(unlinked.paths.find((p) => p.ownerName === 'Husain')?.status).toBe('Below threshold')
+  })
+
+  it('leaves a below-threshold non-member reading plainly below', () => {
+    const links = [
+      owns('Husain', 'individual', 20, 'ABC LTD'),
+      owns('Layla', 'individual', 5, 'ABC LTD'),
+      owns('Omar', 'individual', 5, 'ABC LTD'),
+      owns('Masood', 'individual', 70, 'ABC LTD'),
+    ]
+    const result = run(links, 25, [related('Spouses', 'Husain', 'Layla')])
+    expect(result.paths.find((p) => p.ownerName === 'Omar')?.status).toBe('Below threshold')
+    expect(result.ubos.map((u) => u.name).sort()).toEqual(['Husain', 'Layla', 'Masood'])
+  })
+
   it('chains links into one group: A–B and B–C is a group of three', () => {
     const family = [
       owns('A', 'individual', 10, 'ABC LTD'),

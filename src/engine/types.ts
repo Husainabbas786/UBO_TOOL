@@ -164,6 +164,11 @@ export type UboStatus =
   | 'No owners entered'
   /** A trust, foundation or NPO whose role-holders have been captured instead. */
   | 'Role holders identified'
+  /**
+   * This path is below the threshold on its own, but the party is a UBO all the
+   * same: a related-party group they belong to clears it between them.
+   */
+  | 'Below threshold (UBO via group)'
 
 /**
  * The ways a person can qualify. A person can qualify on more than one, so

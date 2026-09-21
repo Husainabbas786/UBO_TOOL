@@ -330,6 +330,25 @@ export function calculate(
   ubos.sort((a, b) => b.totalPercent - a.totalPercent || a.name.localeCompare(b.name))
 
   /*
+   * A member lifted over the line by a related-party group holds less than the
+   * threshold on their own, so every path of theirs reads "Below threshold"
+   * while the summary lists them as a beneficial owner. Two blocks of the same
+   * report contradicting each other is the kind of thing a reviewer stops at,
+   * so the status says both: this stake falls short, the person is captured.
+   *
+   * Only those promoted *solely* by a group are relabelled — anyone who
+   * qualifies on their own stake keeps the plain "UBO" their paths already had.
+   */
+  const groupOnlyKeys = new Set(
+    ubos.filter((ubo) => ubo.basis === 'Related-party aggregation').map((ubo) => ubo.key),
+  )
+  for (const path of paths) {
+    if (path.status === 'Below threshold' && groupOnlyKeys.has(path.ownerKey)) {
+      path.status = 'Below threshold (UBO via group)'
+    }
+  }
+
+  /*
    * Why a badged controller is not on the list.
    *
    * The chart marks everyone who was flagged, so a person whose control does
