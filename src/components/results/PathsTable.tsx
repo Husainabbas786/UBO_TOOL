@@ -8,6 +8,7 @@ const STATUS_STYLES: Record<UboStatus, string> = {
   UBO: 'bg-uboTint text-darkGreen border border-mfzGreen',
   'Below threshold': 'bg-field text-muted border border-fieldBorder',
   'No owners entered': 'bg-gapTint text-coral border border-coral',
+  'Role holders identified': 'bg-purple-t10 text-purple border border-purple',
 }
 
 function StatusPill({ status }: { status: UboStatus }) {
