@@ -268,6 +268,7 @@ export function calculate(
       entityName: entity.name,
       entityKind: entity.entityKind,
       role: link.role,
+      effectivePercent: shareOf(link.entityKey),
     })
     roleClaimsFor.set(link.ownerKey, list)
   }

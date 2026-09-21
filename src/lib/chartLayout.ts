@@ -1,5 +1,15 @@
 import * as dagre from 'dagre'
-import { controlLinks, formatPercent, type CalculationResult, type PartyType } from '../engine'
+import {
+  entityKindLabel,
+  formatPercent,
+  isNonCommercial,
+  type CalculationResult,
+  type EntityKind,
+  type PartyType,
+} from '../engine'
+
+/** How an edge is drawn and coloured. */
+export type EdgeTone = 'ownership' | 'control' | 'role' | 'nominee'
 
 export interface ChartNode {
   key: string
@@ -7,10 +17,12 @@ export interface ChartNode {
   /** The full name, wrapped to fit the box. Never abbreviated or truncated. */
   nameLines: string[]
   type: PartyType
+  entityKind: EntityKind
   isTarget: boolean
   isUbo: boolean
-  isController: boolean
-  /** Second line in the box: the target's label, or the aggregated effective %. */
+  /** Short words along the top edge: "Control", a role, "Nominee". */
+  badges: string[]
+  /** Second line in the box: the target's label, the kind, or the effective %. */
   subLabel: string | null
   x: number
   y: number
@@ -22,7 +34,9 @@ export interface ChartEdge {
   id: string
   points: Array<{ x: number; y: number }>
   label: string
-  /** Control without ownership is drawn dashed, and labelled "Control". */
+  labelWidth: number
+  tone: EdgeTone
+  /** Anything that is not a shareholding is drawn dashed. */
   dashed: boolean
   labelX: number
   labelY: number
@@ -48,18 +62,44 @@ const NODE_MIN_HEIGHT = 58
 const NODE_PAD_Y = 12
 const LINE_HEIGHT = 16
 const SUB_HEIGHT = 16
+export const SUB_FONT_SIZE = 11
 
 export const NAME_FONT_SIZE = 12.5
 export const NAME_LINE_HEIGHT = LINE_HEIGHT
 export const NODE_TEXT_X = TEXT_X
 
-const LABEL_WIDTH = 58
-const LABEL_HEIGHT = 20
+const LABEL_MIN_WIDTH = 58
+const LABEL_FONT_SIZE = 11
+const LABEL_PAD_X = 9
+export const LABEL_HEIGHT = 20
 /** Uniform breathing room around the cropped drawing. */
 const PADDING = 16
-/** The "Control" badge overhangs the top edge of its node by this much. */
-const BADGE_WIDTH = 48
+
+/** Badges sit astride the top edge of their node, right to left. */
+export const BADGE_FONT_SIZE = 10
+export const BADGE_HEIGHT = 18
+const BADGE_PAD_X = 9
+const BADGE_GAP = 4
+const BADGE_RIGHT_INSET = 4
 const BADGE_OVERHANG = 9
+
+export function badgeWidth(text: string): number {
+  return Math.ceil(textWidth(text, BADGE_FONT_SIZE) + BADGE_PAD_X * 2)
+}
+
+/** Badge boxes for one node, right-aligned along its top edge. */
+export function badgeBoxes(
+  node: Pick<ChartNode, 'badges' | 'x' | 'y' | 'width'>,
+): Array<{ text: string; x: number; y: number; width: number }> {
+  const boxes: Array<{ text: string; x: number; y: number; width: number }> = []
+  let right = node.x + node.width - BADGE_RIGHT_INSET
+  for (const text of node.badges) {
+    const width = badgeWidth(text)
+    boxes.push({ text, x: right - width, y: node.y - BADGE_OVERHANG, width })
+    right -= width + BADGE_GAP
+  }
+  return boxes
+}
 
 /*
  * Text is measured from a character-width table rather than from the canvas.
@@ -137,19 +177,96 @@ export function wrapName(name: string, maxWidth: number): string[] {
 interface MeasuredNode {
   nameLines: string[]
   subLabel: string | null
+  badges: string[]
   width: number
   height: number
 }
 
-/** Box size for one party: as narrow as its longest line allows. */
-function measureNode(nameLines: string[], hasSubLabel: boolean): { width: number; height: number } {
-  const longest = nameLines.reduce((max, line) => Math.max(max, textWidth(line)), 0)
+/**
+ * Box size for one party: as narrow as its longest line allows.
+ *
+ * The sub-label is measured too. It is set smaller than the name but can run
+ * longer than it — "Trust · 100.00% effective" under a short name — and a box
+ * sized to the name alone would let it run into its own right-hand edge.
+ */
+function measureNode(
+  nameLines: string[],
+  subLabel: string | null,
+): { width: number; height: number } {
+  const longest = nameLines.reduce(
+    (max, line) => Math.max(max, textWidth(line)),
+    subLabel === null ? 0 : textWidth(subLabel, SUB_FONT_SIZE),
+  )
   const width = Math.min(
     NODE_MAX_WIDTH,
     Math.max(NODE_MIN_WIDTH, Math.ceil(TEXT_X + longest + TEXT_PAD_RIGHT)),
   )
-  const content = nameLines.length * LINE_HEIGHT + (hasSubLabel ? SUB_HEIGHT : 0)
+  const content = nameLines.length * LINE_HEIGHT + (subLabel === null ? 0 : SUB_HEIGHT)
   return { width, height: Math.max(NODE_MIN_HEIGHT, content + NODE_PAD_Y * 2) }
+}
+
+/** One drawn arrow. Several links between the same pair collapse into one. */
+interface PairEdge {
+  id: string
+  ownerKey: string
+  entityKey: string
+  labels: string[]
+  tone: EdgeTone
+}
+
+/**
+ * The arrows to draw, one per pair of parties.
+ *
+ * Dagre keys an edge by its endpoints, so two links between the same pair —
+ * settlor *and* beneficiary of the same trust — have to be merged here, or the
+ * second would overwrite the first and one role would vanish from the chart.
+ *
+ * A nominee arrangement adds an arrow that is not in the graph at all: from the
+ * nominator down to the nominee who holds the shares for them. Without it the
+ * nominator would float unattached, and which of the two is the beneficial
+ * owner would be left to guesswork.
+ */
+function pairEdges(result: CalculationResult): PairEdge[] {
+  const byPair = new Map<string, PairEdge>()
+
+  const add = (edge: PairEdge) => {
+    const pair = `${edge.ownerKey}>${edge.entityKey}`
+    const existing = byPair.get(pair)
+    if (existing) existing.labels.push(...edge.labels)
+    else byPair.set(pair, { ...edge, labels: [...edge.labels] })
+  }
+
+  for (const link of result.graph.links) {
+    if (link.isRole) {
+      add({
+        id: link.id,
+        ownerKey: link.ownerKey,
+        entityKey: link.entityKey,
+        labels: [link.role ?? 'Role'],
+        tone: 'role',
+      })
+      continue
+    }
+    add({
+      id: link.id,
+      ownerKey: link.ownerKey,
+      entityKey: link.entityKey,
+      labels: [link.isControl ? 'Control' : `${formatPercent(link.percent)}%`],
+      tone: link.isControl ? 'control' : 'ownership',
+    })
+
+    if (link.nominatorKey !== null) {
+      add({
+        id: `${link.id}-nominator`,
+        ownerKey: link.nominatorKey,
+        entityKey: link.ownerKey,
+        labels: ['via nominee'],
+        tone: 'nominee',
+      })
+    }
+  }
+
+  return [...byPair.values()]
 }
 
 /**
@@ -167,32 +284,70 @@ export function layoutChart(result: CalculationResult): ChartLayout {
 
   const uboKeys = new Set(result.ubos.map((ubo) => ubo.key))
   const ownerPercent = new Map(result.owners.map((owner) => [owner.key, owner.totalPercent]))
-  const controlKeys = new Set(
-    controlLinks(result.graph).map((link) => `${link.ownerKey}>${link.entityKey}`),
-  )
+
+  /** Every role anybody was entered as, for the badge along the top of the box. */
+  const rolesByOwner = new Map<string, string[]>()
+  for (const link of result.graph.links) {
+    if (!link.isRole || link.role === null) continue
+    const list = rolesByOwner.get(link.ownerKey) ?? []
+    if (!list.includes(link.role)) list.push(link.role)
+    rolesByOwner.set(link.ownerKey, list)
+  }
+
+  const edgeList = pairEdges(result)
 
   // Measure first: dagre needs each box's real size to space the ranks.
   const nameWidth = NODE_MAX_WIDTH - TEXT_X - TEXT_PAD_RIGHT
   const measured = new Map<string, MeasuredNode>()
   for (const node of result.graph.nodes) {
     const percent = ownerPercent.get(node.key)
-    const subLabel =
-      node.key === result.target.key
-        ? 'Meydan FZ company'
-        : percent === undefined
-          ? null
-          : `${formatPercent(percent)}% effective`
+
+    /*
+     * The second line of the box. A nominee holding nothing of their own is
+     * said outright — "not a UBO" — because the arrow into the company is
+     * theirs and, left unlabelled, would read as their shareholding.
+     */
+    let subLabel: string | null
+    if (node.key === result.target.key) {
+      subLabel = 'Meydan FZ company'
+    } else if (node.isNominee && percent === undefined) {
+      subLabel = 'Nominee — not a UBO'
+    } else {
+      const bits: string[] = []
+      if (isNonCommercial(node.entityKind)) bits.push(entityKindLabel(node.entityKind))
+      if (percent !== undefined) {
+        bits.push(node.isNominee ? `${formatPercent(percent)}% own shares` : `${formatPercent(percent)}% effective`)
+      }
+      subLabel = bits.length > 0 ? bits.join(' · ') : null
+    }
+
+    const badges = [...(rolesByOwner.get(node.key) ?? [])]
+    if (node.isNominee && percent !== undefined) badges.push('Nominee')
+    if (node.isController) badges.push('Control')
+
     const nameLines = wrapName(node.name, nameWidth)
-    measured.set(node.key, { nameLines, subLabel, ...measureNode(nameLines, subLabel !== null) })
+    measured.set(node.key, {
+      nameLines,
+      subLabel,
+      badges,
+      ...measureNode(nameLines, subLabel),
+    })
   }
 
   for (const node of result.graph.nodes) {
     const box = measured.get(node.key)!
     graph.setNode(node.key, { width: box.width, height: box.height })
   }
-  for (const link of result.graph.links) {
-    graph.setEdge(link.ownerKey, link.entityKey, {
-      width: LABEL_WIDTH,
+  const labelWidths = new Map<string, number>()
+  for (const edge of edgeList) {
+    const label = edge.labels.join(', ')
+    const width = Math.max(
+      LABEL_MIN_WIDTH,
+      Math.ceil(textWidth(label, LABEL_FONT_SIZE) + LABEL_PAD_X * 2),
+    )
+    labelWidths.set(`${edge.ownerKey}>${edge.entityKey}`, width)
+    graph.setEdge(edge.ownerKey, edge.entityKey, {
+      width,
       height: LABEL_HEIGHT,
       labelpos: 'c',
     })
@@ -207,8 +362,8 @@ export function layoutChart(result: CalculationResult): ChartLayout {
    * run wider than the drawing on one side and leave the chart sitting off to
    * the left with an empty gutter beside it — visible on screen, and baked into
    * an exported PNG. Measuring the real extents of every box, edge point, edge
-   * label chip and control badge, then shifting the whole drawing to sit at a
-   * uniform padding from the top left, gives a tight and balanced image.
+   * label chip and badge, then shifting the whole drawing to sit at a uniform
+   * padding from the top left, gives a tight and balanced image.
    */
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -227,15 +382,17 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     const left = positioned.x - box.width / 2
     const top = positioned.y - box.height / 2
     extend(left, top, left + box.width, top + box.height)
-    // The Control badge sits astride the top edge, inset from the right.
-    if (node.isController) extend(left + box.width - BADGE_WIDTH - 4, top - BADGE_OVERHANG, left + box.width - 4, top)
+    for (const badge of badgeBoxes({ badges: box.badges, x: left, y: top, width: box.width })) {
+      extend(badge.x, badge.y, badge.x + badge.width, badge.y + BADGE_HEIGHT)
+    }
   }
-  for (const link of result.graph.links) {
-    const routed = graph.edge(link.ownerKey, link.entityKey)
+  for (const edge of edgeList) {
+    const routed = graph.edge(edge.ownerKey, edge.entityKey)
     for (const point of routed.points) extend(point.x, point.y, point.x, point.y)
     const labelX = routed.x ?? 0
     const labelY = routed.y ?? 0
-    extend(labelX - LABEL_WIDTH / 2, labelY - LABEL_HEIGHT / 2, labelX + LABEL_WIDTH / 2, labelY + LABEL_HEIGHT / 2)
+    const width = labelWidths.get(`${edge.ownerKey}>${edge.entityKey}`) ?? LABEL_MIN_WIDTH
+    extend(labelX - width / 2, labelY - LABEL_HEIGHT / 2, labelX + width / 2, labelY + LABEL_HEIGHT / 2)
   }
 
   const shiftX = Number.isFinite(minX) ? PADDING - minX : PADDING
@@ -249,9 +406,10 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       name: node.name,
       nameLines: box.nameLines,
       type: node.type,
+      entityKind: node.entityKind,
       isTarget: node.key === result.target.key,
       isUbo: uboKeys.has(node.key),
-      isController: node.isController,
+      badges: box.badges,
       subLabel: box.subLabel,
       x: snap(positioned.x - box.width / 2 + shiftX),
       y: snap(positioned.y - box.height / 2 + shiftY),
@@ -260,17 +418,19 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     }
   })
 
-  const edges: ChartEdge[] = result.graph.links.map((link) => {
-    const routed = graph.edge(link.ownerKey, link.entityKey)
-    const isControl = controlKeys.has(`${link.ownerKey}>${link.entityKey}`)
+  const edges: ChartEdge[] = edgeList.map((edge) => {
+    const routed = graph.edge(edge.ownerKey, edge.entityKey)
+    const pair = `${edge.ownerKey}>${edge.entityKey}`
     return {
-      id: link.id,
+      id: edge.id,
       points: routed.points.map((point) => ({
         x: snap(point.x + shiftX),
         y: snap(point.y + shiftY),
       })),
-      label: isControl ? 'Control' : `${formatPercent(link.percent)}%`,
-      dashed: isControl,
+      label: edge.labels.join(', '),
+      labelWidth: labelWidths.get(pair) ?? LABEL_MIN_WIDTH,
+      tone: edge.tone,
+      dashed: edge.tone !== 'ownership',
       labelX: snap((routed.x ?? 0) + shiftX),
       labelY: snap((routed.y ?? 0) + shiftY),
     }

@@ -110,6 +110,7 @@ describe('non-commercial structures — role-based UBOs', () => {
         entityName: 'XYZ Trust',
         entityKind: 'trust',
         role: 'Settlor',
+        effectivePercent: 100,
       },
     ])
   })

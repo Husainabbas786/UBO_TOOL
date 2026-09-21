@@ -5,22 +5,29 @@ import {
   companyTotals,
   DEFAULT_THRESHOLD,
   defaultTargetKey,
+  resolveEntityKinds,
   TOTAL_TOLERANCE,
   validate,
   toKey,
   type CalculationResult,
+  type EntityKind,
   type ValidationIssue,
 } from './engine'
 import {
+  blankRelatedRow,
   blankRow,
   exampleRows,
   hasNamedCompany,
+  isRelatedRowDirty,
   isRowDirty,
   nextCompanyToComplete,
+  withEntityKind,
   type LinkRowState,
+  type RelatedRowState,
 } from './lib/rows'
 import { Blockers } from './components/Blockers'
 import { LinksBuilder } from './components/LinksBuilder'
+import { RelatedParties } from './components/RelatedParties'
 import { TargetSelect } from './components/TargetSelect'
 import { ThresholdSelect } from './components/ThresholdSelect'
 import { Header } from './components/Header'
@@ -29,14 +36,37 @@ import { Button, Card } from './components/ui'
 
 export default function App() {
   const [rows, setRows] = useState<LinkRowState[]>(() => [blankRow()])
+  const [relatedRows, setRelatedRows] = useState<RelatedRowState[]>([])
   const [threshold, setThreshold] = useState<number>(DEFAULT_THRESHOLD)
   const [chosenTargetKey, setChosenTargetKey] = useState<string | null>(null)
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [engineError, setEngineError] = useState<string | null>(null)
 
   const graph = useMemo(() => buildGraph(rows), [rows])
-  const validation = useMemo(() => validate(rows, graph), [rows, graph])
+  /** Only the links the agent has actually started; a blank one is ignored. */
+  const relatedParties = useMemo(() => relatedRows.filter(isRelatedRowDirty), [relatedRows])
+  const validation = useMemo(
+    () => validate(rows, graph, relatedParties),
+    [rows, graph, relatedParties],
+  )
   const totals = useMemo(() => companyTotals(graph), [graph])
+
+  /*
+   * What each row's entity is, resolved across every row that names it.
+   *
+   * The kind belongs to the entity, not to the row: marking "XYZ Trust" a trust
+   * once has to turn every row naming it into a role row, including the ones
+   * typed before the kind was set.
+   */
+  const entityKinds = useMemo(() => {
+    const kinds = resolveEntityKinds(rows)
+    return new Map<string, EntityKind>(
+      rows.map((row) => {
+        const key = toKey(row.entityName)
+        return [row.id, key === '' ? row.entityKind : (kinds.get(key) ?? 'company')]
+      }),
+    )
+  }, [rows])
 
   // The user's choice holds only while it is still a candidate; an edit that
   // removes it falls back to the auto-detected target.
@@ -58,7 +88,7 @@ export default function App() {
     setResult(null)
     setEngineError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, threshold, targetKey])
+  }, [rows, relatedRows, threshold, targetKey])
 
   const anyRowDirty = rows.some(isRowDirty)
   const incompleteRowIds = new Set(rows.filter((row) => !isRowDirty(row)).map((row) => row.id))
@@ -74,6 +104,8 @@ export default function App() {
   const partyIssues = validation.errors.filter(
     (issue) => issue.nodeKey !== undefined && issue.code !== 'totals-not-100',
   )
+
+  const relatedIssues = validation.errors.filter((issue) => issue.relatedId !== undefined)
 
   const totalsWithStatus = totals.map((company) => ({
     ...company,
@@ -120,10 +152,32 @@ export default function App() {
     })
   }
 
+  /**
+   * What an entity is belongs to the entity, not to the row, so picking a kind
+   * sets it on every row naming that entity. Without this, marking the second
+   * row a trust would leave the first still asking for a percentage of it.
+   */
+  const handleChangeEntityKind = (row: LinkRowState, kind: EntityKind) => {
+    const entityKey = toKey(row.entityName)
+    setRows((current) =>
+      current.map((candidate) => {
+        if (entityKey === '') {
+          return candidate.id === row.id ? withEntityKind(candidate, kind) : candidate
+        }
+        return toKey(candidate.entityName) === entityKey
+          ? withEntityKind(candidate, kind)
+          : candidate
+      }),
+    )
+  }
+
+  const handleChangeRelatedRow = (updated: RelatedRowState) =>
+    setRelatedRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+
   const handleCalculate = () => {
     if (!targetKey) return
     try {
-      setResult(calculate(rows, { targetKey, threshold }))
+      setResult(calculate(rows, { targetKey, threshold, relatedParties }))
       setEngineError(null)
     } catch (error) {
       setResult(null)
@@ -133,6 +187,7 @@ export default function App() {
 
   const handleStartOver = () => {
     setRows([blankRow()])
+    setRelatedRows([])
     setThreshold(DEFAULT_THRESHOLD)
     setChosenTargetKey(null)
     setResult(null)
@@ -141,6 +196,7 @@ export default function App() {
 
   const handleLoadExample = () => {
     setRows(exampleRows())
+    setRelatedRows([])
     setThreshold(DEFAULT_THRESHOLD)
     setChosenTargetKey(null)
     setResult(null)
@@ -164,9 +220,25 @@ export default function App() {
             companyTotals={totalsWithStatus}
             partyIssues={partyIssues}
             entityPlaceholder={entityPlaceholder}
+            entityKinds={entityKinds}
             onChangeRow={handleChangeRow}
+            onChangeEntityKind={handleChangeEntityKind}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
             onAddRow={handleAddRow}
+          />
+        </Card>
+
+        <Card
+          title="Related-party links (aggregation)"
+          description="Optional. Shareholders assessed together against the threshold."
+        >
+          <RelatedParties
+            rows={relatedRows}
+            partyNames={graph.nodes.map((node) => node.name)}
+            issues={relatedIssues}
+            onChange={handleChangeRelatedRow}
+            onRemove={(id) => setRelatedRows((current) => current.filter((row) => row.id !== id))}
+            onAdd={() => setRelatedRows((current) => [...current, blankRelatedRow()])}
           />
         </Card>
 

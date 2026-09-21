@@ -178,6 +178,8 @@ export interface RoleClaim {
   entityName: string
   entityKind: EntityKind
   role: RoleName
+  /** The entity's own effective % of the target — what the gate was applied to. */
+  effectivePercent: number
 }
 
 /** One route from an ultimate owner down to the target entity. */

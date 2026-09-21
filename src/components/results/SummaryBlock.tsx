@@ -2,33 +2,75 @@ import {
   formatPercent,
   type CalculationResult,
   type ExcludedController,
+  type ExcludedRoleHolder,
+  type RelatedPartyGroup,
   type UboSummaryEntry,
 } from '../../engine'
 
-/**
- * How a beneficial owner qualifies, in words. Someone who qualifies purely on
- * control needs to be told which company they control, otherwise the line reads
- * as a 0% owner and means nothing to a reviewer.
- */
-function describeBasis(ubo: UboSummaryEntry, targetName: string): string {
-  const owned = `${formatPercent(ubo.totalPercent)}% ownership`
-  const controlled = ubo.controls.length > 0 ? ubo.controls.join(', ') : targetName
+/** "A", "A and B", "A, B and C". */
+function listOf(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
 
-  if (ubo.basis === 'Control') return `: control of ${controlled} (${owned})`
-  if (ubo.basis === 'Ownership + Control') {
-    return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}, and control of ${controlled}`
+/**
+ * How a beneficial owner qualifies, in words.
+ *
+ * Someone who qualifies on anything other than a percentage needs to be told
+ * what carried them there — which company they control, which trust they hold a
+ * role in — otherwise the line reads as a 0% owner and means nothing to a
+ * reviewer. The clauses compose, because a person can qualify on more than one.
+ */
+function describeBasis(ubo: UboSummaryEntry, result: CalculationResult): string {
+  const targetName = result.target.name
+  const clauses: string[] = []
+
+  if (ubo.basis.includes('Ownership')) {
+    clauses.push(`holds ${formatPercent(ubo.totalPercent)}% of ${targetName}`)
   }
-  return ` holds ${formatPercent(ubo.totalPercent)}% of ${targetName}`
+
+  if (ubo.roles.length > 0) {
+    clauses.push(
+      `is ${listOf(
+        ubo.roles.map((claim) =>
+          claim.entityKey === result.target.key
+            ? `${claim.role} of ${claim.entityName}`
+            : `${claim.role} of ${claim.entityName}, which holds ${formatPercent(
+                claim.effectivePercent,
+              )}% of ${targetName}`,
+        ),
+      )}`,
+    )
+  }
+
+  if (ubo.controls.length > 0) {
+    clauses.push(`has control of ${listOf(ubo.controls)}`)
+  }
+
+  if (ubo.relatedGroupIds.length > 0 && !ubo.basis.includes('Ownership')) {
+    const totals = result.relatedGroups
+      .filter((group) => ubo.relatedGroupIds.includes(group.id))
+      .map((group) => `${formatPercent(group.totalPercent)}%`)
+    clauses.push(
+      `holds ${formatPercent(ubo.totalPercent)}% of ${targetName}, within a related-party group totalling ${listOf(totals)}`,
+    )
+  }
+
+  if (clauses.length === 0) {
+    clauses.push(`holds ${formatPercent(ubo.totalPercent)}% of ${targetName}`)
+  }
+
+  return ` ${listOf(clauses)}`
 }
 
 /** "A (5.00%)", "A (5.00%) and B (3.00%)", "A (…), B (…) and C (…)". */
 function listCompanies(companies: ExcludedController['companies']): string {
-  const parts = companies.map(
-    (company) =>
-      `${company.name} (${formatPercent(company.effectivePercent)}% of the Meydan FZ company)`,
+  return listOf(
+    companies.map(
+      (company) =>
+        `${company.name} (${formatPercent(company.effectivePercent)}% of the Meydan FZ company)`,
+    ),
   )
-  if (parts.length <= 1) return parts[0] ?? ''
-  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
 /**
@@ -43,8 +85,38 @@ function describeExclusion(entry: ExcludedController, threshold: number): string
   } below the ${threshold}% threshold, so is not counted as a UBO.`
 }
 
+/** The same explanation for a role-holder whose trust or foundation falls short. */
+function describeRoleExclusion(entry: ExcludedRoleHolder, threshold: number): string {
+  const plural = entry.entities.length > 1
+  const parts = entry.entities.map(
+    (entity) =>
+      `${entity.role} of ${entity.name} (${entity.kindLabel.toLowerCase()}, ${formatPercent(
+        entity.effectivePercent,
+      )}% of the Meydan FZ company)`,
+  )
+  return ` is ${listOf(parts)}, which ${
+    plural ? 'are each' : 'is'
+  } below the ${threshold}% threshold, so is not counted as a UBO.`
+}
+
+/**
+ * One line per group, in the wording Compliance asked for: who was combined,
+ * what each holds, what it comes to, and why that crossed the line.
+ */
+function describeGroup(group: RelatedPartyGroup, threshold: number): string {
+  const sum = group.members
+    .map((member) => `${member.name} ${formatPercent(member.effectivePercent)}%`)
+    .join(' + ')
+  const heading = group.label === '' ? 'Related-party group' : `Related-party group (${group.label})`
+  const verdict = group.qualifies
+    ? `identified as UBOs (combined ownership meets the ${threshold}% threshold)`
+    : `below the ${threshold}% threshold, so no UBO is added`
+  return `${heading}: ${sum} = ${formatPercent(group.totalPercent)}% — ${verdict}.`
+}
+
 export function SummaryBlock({ result }: { result: CalculationResult }) {
   const count = result.ubos.length
+  const groups = result.relatedGroups
 
   return (
     <div className="space-y-4">
@@ -65,7 +137,7 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
             <li key={ubo.key} className="flex flex-wrap items-baseline gap-x-2">
               <span>
                 <span className="font-semibold text-navy">{ubo.name}</span>
-                {describeBasis(ubo, result.target.name)}
+                {describeBasis(ubo, result)}
               </span>
               <span
                 className={`rounded-pill px-2 py-0.5 text-small font-medium ${
@@ -79,16 +151,50 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
         </ul>
       ) : null}
 
+      {/* Aggregation is a manual judgement, so it says exactly what was added
+          together and what it came to — never just the conclusion. */}
+      {groups.length > 0 ? (
+        <div className="rounded-card border border-steelBlue bg-infoTint px-4 py-3">
+          <p className="text-body font-semibold text-navy">Related-party aggregation</p>
+          <ul className="mt-1.5 space-y-2 text-body text-navy">
+            {groups.map((group) => (
+              <li key={group.id}>
+                {describeGroup(group, result.threshold)}
+                {group.qualifies && group.qualifiedViaCompanyMember ? (
+                  <span className="mt-0.5 block text-small text-navy">
+                    The group only reaches the threshold once a company member&rsquo;s stake is
+                    counted. A company is never itself a beneficial owner, so only the individual
+                    members above are identified — check the ownership behind that company.
+                  </span>
+                ) : null}
+                {group.overlaps ? (
+                  <span className="mt-0.5 block text-small text-navy">
+                    A company in this group sits on a member&rsquo;s own chain, so the same shares
+                    are counted twice in the total above. Review before relying on it.
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {/* A badge on the chart with no explanation anywhere is exactly the gap
           this closes: say who was flagged, over what, and why it fell short. */}
-      {result.excludedControllers.length > 0 ? (
+      {result.excludedControllers.length > 0 || result.excludedRoleHolders.length > 0 ? (
         <div className="rounded-card border border-purple bg-purple-t10 px-4 py-3">
-          <p className="text-body font-semibold text-purple">Controllers not counted</p>
+          <p className="text-body font-semibold text-purple">Flagged but not counted</p>
           <ul className="mt-1.5 space-y-1 text-body text-navy">
             {result.excludedControllers.map((entry) => (
               <li key={entry.key}>
                 <span className="font-semibold">{entry.name}</span>
                 {describeExclusion(entry, result.threshold)}
+              </li>
+            ))}
+            {result.excludedRoleHolders.map((entry) => (
+              <li key={`role-${entry.key}`}>
+                <span className="font-semibold">{entry.name}</span>
+                {describeRoleExclusion(entry, result.threshold)}
               </li>
             ))}
           </ul>

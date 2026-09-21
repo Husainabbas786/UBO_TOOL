@@ -147,10 +147,18 @@ export const chart = {
   individual: { fill: '#FFFFFF', stroke: '#6A9DBF', text: '#0F1F33', icon: '#6A9DBF' },
   individualUbo: { fill: '#ECF6E4', stroke: '#62A830', text: '#06603A', icon: '#62A830' },
   company: { fill: '#F4F8FB', stroke: '#00518C', text: '#0F1F33', icon: '#00518C' },
+  /** A trust, foundation or NPO: an entity, but one with no shares. */
+  nonCommercial: { fill: '#F4F8FB', stroke: '#0B7A9E', text: '#0F1F33', icon: '#0B7A9E' },
   target: { fill: '#1F3F76', stroke: '#1F3F76', text: '#FFFFFF', icon: '#FFFFFF' },
   ownershipEdge: { stroke: '#6A9DBF', label: '#0F1F33', chip: '#FFFFFF' },
   controlEdge: { stroke: '#8B65A4', label: '#8B65A4', chip: '#FFFFFF' },
+  /** A role in a non-commercial structure — manual, like control, but distinct. */
+  roleEdge: { stroke: '#0B7A9E', label: '#0B7A9E', chip: '#FFFFFF' },
+  /** Shares held on paper for somebody else: drawn in the caution colour. */
+  nomineeEdge: { stroke: '#D26153', label: '#D26153', chip: '#FFFFFF' },
   controlBadge: { fill: '#8B65A4', text: '#FFFFFF' },
+  roleBadge: { fill: '#0B7A9E', text: '#FFFFFF' },
+  nomineeBadge: { fill: '#D26153', text: '#FFFFFF' },
   surface: '#FFFFFF',
 } as const
 

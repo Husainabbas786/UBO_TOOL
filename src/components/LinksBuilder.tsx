@@ -1,4 +1,4 @@
-import { MAX_LINKS, type ValidationIssue } from '../engine'
+import { MAX_LINKS, type EntityKind, type ValidationIssue } from '../engine'
 import type { LinkRowState } from '../lib/rows'
 import { CompanyTotals, type CompanyTotal } from './CompanyTotals'
 import { LinkRow } from './LinkRow'
@@ -15,7 +15,10 @@ interface LinksBuilderProps {
   partyIssues: ValidationIssue[]
   /** What an empty company field should ask for, given what is entered so far. */
   entityPlaceholder: string
+  /** The resolved kind of the entity each row names, keyed by row id. */
+  entityKinds: Map<string, EntityKind>
   onChangeRow: (row: LinkRowState) => void
+  onChangeEntityKind: (row: LinkRowState, kind: EntityKind) => void
   onRemoveRow: (id: string) => void
   onAddRow: () => void
 }
@@ -27,7 +30,9 @@ export function LinksBuilder({
   companyTotals,
   partyIssues,
   entityPlaceholder,
+  entityKinds,
   onChangeRow,
+  onChangeEntityKind,
   onRemoveRow,
   onAddRow,
 }: LinksBuilderProps) {
@@ -44,8 +49,10 @@ export function LinksBuilder({
             issues={issuesByRow.get(row.id) ?? []}
             hint={incompleteRowIds.has(row.id) ? 'Complete this row or remove it.' : undefined}
             entityPlaceholder={entityPlaceholder}
+            entityKind={entityKinds.get(row.id) ?? 'company'}
             canRemove={rows.length > 1}
             onChange={onChangeRow}
+            onChangeEntityKind={(kind) => onChangeEntityKind(row, kind)}
             onRemove={() => onRemoveRow(row.id)}
           />
         ))}

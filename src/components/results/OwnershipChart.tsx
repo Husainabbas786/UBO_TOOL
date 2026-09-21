@@ -1,14 +1,19 @@
 import { useMemo } from 'react'
-import type { CalculationResult } from '../../engine'
+import { isNonCommercial, type CalculationResult } from '../../engine'
 import { chart as palette } from '../../theme/tokens'
 import {
+  badgeBoxes,
+  BADGE_FONT_SIZE,
+  BADGE_HEIGHT,
   layoutChart,
+  LABEL_HEIGHT,
   NAME_FONT_SIZE,
   NAME_LINE_HEIGHT,
   NODE_TEXT_X,
+  type ChartEdge,
   type ChartNode,
 } from '../../lib/chartLayout'
-import { BuildingGlyph, PersonGlyph } from './icons'
+import { BuildingGlyph, DeedGlyph, PersonGlyph } from './icons'
 
 /**
  * Chart colours are written into the SVG as literal hex, never as CSS
@@ -16,16 +21,48 @@ import { BuildingGlyph, PersonGlyph } from './icons'
  */
 function paletteFor(node: ChartNode) {
   if (node.isTarget) return palette.target
-  if (node.type === 'company') return palette.company
+  if (node.type === 'company') {
+    return isNonCommercial(node.entityKind) ? palette.nonCommercial : palette.company
+  }
   if (node.isUbo) return palette.individualUbo
   return palette.individual
 }
 
-/** Matches the badge extents chartLayout reserves when cropping the drawing. */
-const BADGE_INSET = 52
+function edgePalette(tone: ChartEdge['tone']) {
+  if (tone === 'control') return palette.controlEdge
+  if (tone === 'role') return palette.roleEdge
+  if (tone === 'nominee') return palette.nomineeEdge
+  return palette.ownershipEdge
+}
+
+/** Each kind of badge carries its own colour, so the chart reads at a glance. */
+function badgePalette(text: string) {
+  if (text === 'Control') return palette.controlBadge
+  if (text === 'Nominee') return palette.nomineeBadge
+  return palette.roleBadge
+}
+
+/** The arrowhead colour has to be declared per tone, so each tone gets a marker. */
+const MARKERS: Array<{ id: string; tone: ChartEdge['tone'] }> = [
+  { id: 'ubo-arrow', tone: 'ownership' },
+  { id: 'ubo-arrow-control', tone: 'control' },
+  { id: 'ubo-arrow-role', tone: 'role' },
+  { id: 'ubo-arrow-nominee', tone: 'nominee' },
+]
+
+const MARKER_FOR: Record<ChartEdge['tone'], string> = {
+  ownership: 'ubo-arrow',
+  control: 'ubo-arrow-control',
+  role: 'ubo-arrow-role',
+  nominee: 'ubo-arrow-nominee',
+}
 
 export function OwnershipChart({ result }: { result: CalculationResult }) {
   const layout = useMemo(() => layoutChart(result), [result])
+
+  const hasRoles = layout.edges.some((edge) => edge.tone === 'role')
+  const hasNominees = layout.edges.some((edge) => edge.tone === 'nominee')
+  const hasControl = layout.edges.some((edge) => edge.tone === 'control')
 
   return (
     <div>
@@ -45,32 +82,24 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
           textRendering="optimizeLegibility"
         >
           <defs>
-            <marker
-              id="ubo-arrow"
-              viewBox="0 0 8 8"
-              refX={7}
-              refY={4}
-              markerWidth={7}
-              markerHeight={7}
-              orient="auto-start-reverse"
-            >
-              <path d="M0 0.5 L7.5 4 L0 7.5 z" fill={palette.ownershipEdge.stroke} />
-            </marker>
-            <marker
-              id="ubo-arrow-control"
-              viewBox="0 0 8 8"
-              refX={7}
-              refY={4}
-              markerWidth={7}
-              markerHeight={7}
-              orient="auto-start-reverse"
-            >
-              <path d="M0 0.5 L7.5 4 L0 7.5 z" fill={palette.controlEdge.stroke} />
-            </marker>
+            {MARKERS.map((marker) => (
+              <marker
+                key={marker.id}
+                id={marker.id}
+                viewBox="0 0 8 8"
+                refX={7}
+                refY={4}
+                markerWidth={7}
+                markerHeight={7}
+                orient="auto-start-reverse"
+              >
+                <path d="M0 0.5 L7.5 4 L0 7.5 z" fill={edgePalette(marker.tone).stroke} />
+              </marker>
+            ))}
           </defs>
 
           {layout.edges.map((edge) => {
-            const colours = edge.dashed ? palette.controlEdge : palette.ownershipEdge
+            const colours = edgePalette(edge.tone)
             return (
               <g key={edge.id}>
                 <path
@@ -79,13 +108,13 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                   stroke={colours.stroke}
                   strokeWidth={1.5}
                   strokeDasharray={edge.dashed ? '5 4' : undefined}
-                  markerEnd={edge.dashed ? 'url(#ubo-arrow-control)' : 'url(#ubo-arrow)'}
+                  markerEnd={`url(#${MARKER_FOR[edge.tone]})`}
                 />
                 <rect
-                  x={edge.labelX - 29}
-                  y={edge.labelY - 10}
-                  width={58}
-                  height={20}
+                  x={edge.labelX - edge.labelWidth / 2}
+                  y={edge.labelY - LABEL_HEIGHT / 2}
+                  width={edge.labelWidth}
+                  height={LABEL_HEIGHT}
                   rx={5}
                   fill={colours.chip}
                   stroke={edge.dashed ? colours.stroke : 'none'}
@@ -110,8 +139,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
             // Centre the name block, plus its sub-label, within the box.
             const blockHeight =
               nameLines.length * NAME_LINE_HEIGHT + (subLabel ? NAME_LINE_HEIGHT : 0)
-            const firstBaseline =
-              node.y + (node.height - blockHeight) / 2 + NAME_FONT_SIZE
+            const firstBaseline = node.y + (node.height - blockHeight) / 2 + NAME_FONT_SIZE
             return (
               <g key={node.key}>
                 <rect
@@ -127,6 +155,8 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                 <g transform={`translate(${node.x + 12}, ${node.y + node.height / 2 - 9})`}>
                   {node.type === 'individual' ? (
                     <PersonGlyph colour={colours.icon} />
+                  ) : isNonCommercial(node.entityKind) ? (
+                    <DeedGlyph colour={colours.icon} />
                   ) : (
                     <BuildingGlyph colour={colours.icon} />
                   )}
@@ -155,28 +185,31 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                   </text>
                 ) : null}
 
-                {node.isController ? (
-                  <g>
-                    <rect
-                      x={node.x + node.width - BADGE_INSET}
-                      y={node.y - 9}
-                      width={48}
-                      height={18}
-                      rx={9}
-                      fill={palette.controlBadge.fill}
-                    />
-                    <text
-                      x={node.x + node.width - BADGE_INSET + 24}
-                      y={node.y + 3}
-                      textAnchor="middle"
-                      fontSize={10}
-                      fontWeight={600}
-                      fill={palette.controlBadge.text}
-                    >
-                      Control
-                    </text>
-                  </g>
-                ) : null}
+                {badgeBoxes(node).map((badge) => {
+                  const badgeColours = badgePalette(badge.text)
+                  return (
+                    <g key={badge.text}>
+                      <rect
+                        x={badge.x}
+                        y={badge.y}
+                        width={badge.width}
+                        height={BADGE_HEIGHT}
+                        rx={BADGE_HEIGHT / 2}
+                        fill={badgeColours.fill}
+                      />
+                      <text
+                        x={badge.x + badge.width / 2}
+                        y={badge.y + 12}
+                        textAnchor="middle"
+                        fontSize={BADGE_FONT_SIZE}
+                        fontWeight={600}
+                        fill={badgeColours.text}
+                      >
+                        {badge.text}
+                      </text>
+                    </g>
+                  )
+                })}
               </g>
             )
           })}
@@ -196,6 +229,14 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
           </svg>
           Company
         </span>
+        {hasRoles ? (
+          <span className="inline-flex items-center gap-1.5">
+            <svg width={16} height={16} viewBox="0 0 18 18">
+              <DeedGlyph colour={palette.nonCommercial.stroke} />
+            </svg>
+            Trust / foundation / NPO
+          </span>
+        ) : null}
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-3 rounded border-2 border-mfzGreen bg-uboTint" />
           UBO at {result.threshold}%
@@ -204,17 +245,45 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
           <span className="h-3 w-3 rounded bg-navy" />
           Meydan FZ company
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width={22} height={6} viewBox="0 0 22 6">
-            <path
-              d="M0 3 H22"
-              stroke={palette.controlEdge.stroke}
-              strokeWidth={1.5}
-              strokeDasharray="5 4"
-            />
-          </svg>
-          Control, no ownership
-        </span>
+        {hasControl ? (
+          <span className="inline-flex items-center gap-1.5">
+            <svg width={22} height={6} viewBox="0 0 22 6">
+              <path
+                d="M0 3 H22"
+                stroke={palette.controlEdge.stroke}
+                strokeWidth={1.5}
+                strokeDasharray="5 4"
+              />
+            </svg>
+            Control, no ownership
+          </span>
+        ) : null}
+        {hasRoles ? (
+          <span className="inline-flex items-center gap-1.5">
+            <svg width={22} height={6} viewBox="0 0 22 6">
+              <path
+                d="M0 3 H22"
+                stroke={palette.roleEdge.stroke}
+                strokeWidth={1.5}
+                strokeDasharray="5 4"
+              />
+            </svg>
+            Role, no shareholding
+          </span>
+        ) : null}
+        {hasNominees ? (
+          <span className="inline-flex items-center gap-1.5">
+            <svg width={22} height={6} viewBox="0 0 22 6">
+              <path
+                d="M0 3 H22"
+                stroke={palette.nomineeEdge.stroke}
+                strokeWidth={1.5}
+                strokeDasharray="5 4"
+              />
+            </svg>
+            Nominator → nominee (the nominator is the UBO)
+          </span>
+        ) : null}
       </div>
     </div>
   )
