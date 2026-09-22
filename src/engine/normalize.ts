@@ -5,6 +5,7 @@ import type {
   OwnershipLinkInput,
   PartyNode,
   PartyType,
+  RoleHolderInput,
 } from './types'
 
 /** Display form: trimmed, with runs of whitespace collapsed to one space. */
@@ -31,22 +32,30 @@ export function isControlRow(link: OwnershipLinkInput): boolean {
 }
 
 /**
- * The kind of every entity named on the right of a row, keyed by name.
+ * The kind of every shareholder named on the left of a row, keyed by name.
  *
- * Resolved per entity rather than per row: a company is a trust everywhere or
- * nowhere, so marking it once is enough and a row typed before the kind was set
- * still becomes a role row. The first non-company declaration wins; a second,
+ * Resolved per shareholder rather than per row: a party is a trust everywhere
+ * or nowhere, so marking it once is enough and a row typed before the kind was
+ * set still follows it. The first non-company declaration wins; a second,
  * different one is reported by validation rather than silently overriding.
+ *
+ * A kind only means anything for a non-natural person, so a row whose owner is
+ * an individual is not read — a person cannot be a foundation.
  */
-export function resolveEntityKinds(links: OwnershipLinkInput[]): Map<string, EntityKind> {
+export function resolveOwnerKinds(links: OwnershipLinkInput[]): Map<string, EntityKind> {
   const kinds = new Map<string, EntityKind>()
   for (const link of links) {
-    const key = toKey(link.entityName)
-    if (key === '') continue
-    const declared = link.entityKind ?? 'company'
+    const key = toKey(link.ownerName)
+    if (key === '' || link.ownerType !== 'company') continue
+    const declared = link.ownerKind ?? 'company'
     if (declared !== 'company' && !kinds.has(key)) kinds.set(key, declared)
   }
   return kinds
+}
+
+/** The role-holder entries on a row that actually name somebody. */
+export function namedRoleHolders(link: OwnershipLinkInput): RoleHolderInput[] {
+  return (link.roleHolders ?? []).filter((holder) => normaliseName(holder.name) !== '')
 }
 
 /**
@@ -73,7 +82,9 @@ function isEconomic(link: GraphLink): boolean {
 export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
   const nodeByKey = new Map<string, PartyNode>()
   const graphLinks: GraphLink[] = []
-  const kinds = resolveEntityKinds(links)
+  const kinds = resolveOwnerKinds(links)
+  /** Role links already emitted, keyed person|structure|role — see below. */
+  const seenRoles = new Set<string>()
 
   const upsert = (rawName: string, type: PartyType, isController: boolean): PartyNode => {
     const key = toKey(rawName)
@@ -99,23 +110,18 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
   for (const link of links) {
     if (normaliseName(link.ownerName) === '' || normaliseName(link.entityName) === '') continue
 
-    const entityKey = toKey(link.entityName)
-    const entityKind = kinds.get(entityKey) ?? 'company'
-    // A role row states a position in a trust or foundation, never a holding,
-    // so the controller and nominee flags on it are not read.
-    const isRole = entityKind !== 'company'
-    const nomineeTicked = !isRole && (link.ownerIsNominee ?? false)
+    const nomineeTicked = link.ownerIsNominee ?? false
     /*
      * A control claim, once the rows that cannot carry one are excluded. Shares
      * held on paper for somebody else are the opposite claim to holding control
      * of them, so a nominee row never flags its owner as a controller — on the
      * link, or on the person.
      */
-    const claimsControl = !isRole && !nomineeTicked && link.ownerIsController
+    const claimsControl = !nomineeTicked && link.ownerIsController
 
     const owner = upsert(link.ownerName, link.ownerType, claimsControl)
     const entity = upsert(link.entityName, 'company', false)
-    const control = isControlRow(link) && !isRole
+    const control = isControlRow(link)
 
     /*
      * The nominator, when one is named. A blank name or the nominee's own name
@@ -137,14 +143,45 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
       id: link.id,
       ownerKey: owner.key,
       entityKey: entity.key,
-      // An empty percentage on a control or role row normalises to a clean 0.
-      percent: control || isRole ? 0 : link.percent,
+      // An empty percentage on a control row normalises to a clean 0.
+      percent: control ? 0 : link.percent,
       isControl: control,
       declaredController: claimsControl && link.ownerType === 'individual',
-      isRole,
-      role: isRole && isRoleValid(entityKind, link.role) ? link.role : null,
+      isRole: false,
+      role: null,
       nominatorKey,
     })
+
+    /*
+     * The people behind a trust, foundation or NPO shareholder, entered inline
+     * on its row. They hold a position in that structure, never a shareholding,
+     * so the link runs into the shareholder and carries no percentage.
+     *
+     * One structure can be a shareholder on several rows, and the builder keeps
+     * its people in step across all of them, so each role is emitted once: a
+     * repeat across rows is one fact stated twice, not two facts. A repeat
+     * within a single row's list is a mistake, and validation says so.
+     */
+    const ownerKind = kinds.get(owner.key) ?? 'company'
+    if (ownerKind === 'company') continue
+    for (const holder of namedRoleHolders(link)) {
+      const role = isRoleValid(ownerKind, holder.role) ? holder.role : null
+      const signature = `${toKey(holder.name)}>${owner.key}>${role ?? ''}`
+      if (seenRoles.has(signature)) continue
+      seenRoles.add(signature)
+      const person = upsert(holder.name, holder.type ?? 'individual', false)
+      graphLinks.push({
+        id: `${link.id}:${holder.id}`,
+        ownerKey: person.key,
+        entityKey: owner.key,
+        percent: 0,
+        isControl: false,
+        declaredController: false,
+        isRole: true,
+        role,
+        nominatorKey: null,
+      })
+    }
   }
 
   // The controller flag only means anything for a natural person.
@@ -155,7 +192,8 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
   /*
    * A company that owns nothing is a candidate for the Meydan FZ company.
    * Control and role links are not shareholdings, so neither disqualifies a
-   * candidate, and a trust or foundation is never the company being analysed.
+   * candidate, and a trust or foundation is never the company being analysed —
+   * a shareholder is the only side of a row it can be entered on.
    *
    * A nominee holding disqualifies *both* ends: the nominator, who owns it
    * beneficially, and the nominee, who owns it on paper. A nominee company

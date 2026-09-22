@@ -6,11 +6,18 @@ import {
   rolesFor,
   type EntityKind,
   type PartyType,
+  type RoleHolderInput,
   type RoleName,
   type ValidationIssue,
 } from '../engine'
 import type { LinkRowState } from '../lib/rows'
-import { withEntityName, withNominee, withOwnerType, withPercentText } from '../lib/rows'
+import {
+  blankRoleHolder,
+  withEntityName,
+  withNominee,
+  withOwnerType,
+  withPercentText,
+} from '../lib/rows'
 import { Button, ErrorText, TextInput } from './ui'
 
 interface LinkRowProps {
@@ -22,13 +29,13 @@ interface LinkRowProps {
   /** What the empty company field should ask for, given what is entered so far. */
   entityPlaceholder: string
   /**
-   * What the entity on this row is, resolved across every row naming it — so a
-   * row typed before the kind was set still shows, and behaves as, a role row.
+   * What the shareholder on this row is, resolved across every row naming it —
+   * so a row typed before the kind was set still shows the same legal type.
    */
-  entityKind: EntityKind
+  ownerKind: EntityKind
   canRemove: boolean
   onChange: (row: LinkRowState) => void
-  onChangeEntityKind: (kind: EntityKind) => void
+  onChangeOwnerKind: (kind: EntityKind) => void
   onRemove: () => void
 }
 
@@ -104,9 +111,39 @@ function FlagBox({
   )
 }
 
-/** The word between the owner and the entity: "owns" shares, or "is" a role. */
+/** The word between the owner and the entity. */
 function Connector({ children }: { children: ReactNode }) {
   return <span className="shrink-0 text-body text-muted">{children}</span>
+}
+
+/**
+ * What kind of non-natural person the shareholder is. An extension of the
+ * Company side of the type toggle rather than a control of its own, so it sits
+ * against it and only exists while the shareholder is a company.
+ */
+function KindSelect({
+  value,
+  onChange,
+  label,
+}: {
+  value: EntityKind
+  onChange: (kind: EntityKind) => void
+  label: string
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value as EntityKind)}
+      className="shrink-0 cursor-pointer rounded-pill border-0 bg-mfzBlue-t10 py-1 pl-2.5 pr-1.5 text-small font-medium text-mfzBlue focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deepTeal"
+    >
+      {ENTITY_KINDS.map((kind) => (
+        <option key={kind.value} value={kind.value}>
+          {kind.label}
+        </option>
+      ))}
+    </select>
+  )
 }
 
 export function LinkRow({
@@ -115,19 +152,32 @@ export function LinkRow({
   issues,
   hint,
   entityPlaceholder,
-  entityKind,
+  ownerKind,
   canRemove,
   onChange,
-  onChangeEntityKind,
+  onChangeOwnerKind,
   onRemove,
 }: LinkRowProps) {
   const has = (code: ValidationIssue['code']) => issues.some((issue) => issue.code === code)
   /*
-   * A trust, foundation or NPO has no shares, so this row states a position in
-   * it rather than a percentage: the percentage box becomes a role, and the
-   * shareholding flags — controller, nominee — do not apply.
+   * A trust, foundation or NPO holds its stake like any other shareholder, but
+   * has no shareholders of its own: the people behind it hold roles, and they
+   * are entered inline on this row. A nominee arrangement is not offered for
+   * one — a structure holding shares for somebody else is not what this is.
    */
-  const isRoleRow = isNonCommercial(entityKind)
+  const isStructure = isNonCommercial(ownerKind)
+
+  /** Errors belonging to the row itself; a person's own sit under their line. */
+  const rowIssues = issues.filter((issue) => issue.roleHolderId === undefined)
+  const kindWord = entityKindLabel(ownerKind).toLowerCase()
+
+  const updateHolder = (holder: RoleHolderInput) =>
+    onChange({
+      ...row,
+      roleHolders: row.roleHolders.map((existing) =>
+        existing.id === holder.id ? holder : existing,
+      ),
+    })
 
   return (
     <div className="rounded-card border border-line bg-white px-3 py-3">
@@ -137,94 +187,60 @@ export function LinkRow({
         <div className="min-w-[8rem] flex-1">
           <TextInput
             aria-label={`Owner name, row ${index + 1}`}
-            placeholder={isRoleRow ? 'Name' : 'Shareholder'}
+            placeholder='Shareholder'
             value={row.ownerName}
             invalid={has('empty-owner-name') || has('self-ownership')}
             onChange={(e) => onChange({ ...row, ownerName: e.target.value })}
           />
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-1.5">
           <TypeToggle
             value={row.ownerType}
             onChange={(t) => onChange(withOwnerType(row, t))}
             label={`Owner type, row ${index + 1}`}
           />
+          {/* A legal type only means anything for a non-natural person, so it
+              appears as an extension of Company and never beside a name. */}
+          {row.ownerType === 'company' ? (
+            <KindSelect
+              value={ownerKind}
+              onChange={onChangeOwnerKind}
+              label={`Shareholder type, row ${index + 1}`}
+            />
+          ) : null}
         </div>
 
-        {isRoleRow ? (
-          <>
-            <Connector>is</Connector>
-            <div className="w-[11rem] shrink-0">
-              <select
-                aria-label={`Role, row ${index + 1}`}
-                value={row.role ?? ''}
-                onChange={(e) =>
-                  onChange({ ...row, role: (e.target.value || null) as RoleName | null })
-                }
-                className={`w-full rounded-input border px-2.5 py-2 text-body focus:outline-none focus-visible:outline-none focus-visible:ring-2 ${
-                  has('role-required')
-                    ? 'border-coral bg-gapTint text-ink focus-visible:ring-coral'
-                    : 'border-fieldBorder bg-field text-ink focus-visible:ring-deepTeal'
-                }`}
-              >
-                <option value="">Select role…</option>
-                {rolesFor(entityKind).map((roleName) => (
-                  <option key={roleName} value={roleName}>
-                    {roleName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Connector>of</Connector>
-          </>
-        ) : (
-          <>
-            <Connector>owns</Connector>
-            <div className="w-[4.5rem] shrink-0">
-              <TextInput
-                aria-label={`Percentage, row ${index + 1}`}
-                inputMode="decimal"
-                placeholder={row.ownerIsController ? '0' : '0.00'}
-                className="text-right"
-                value={row.percentText}
-                invalid={has('invalid-percent') || has('percent-precision')}
-                onChange={(e) => onChange(withPercentText(row, e.target.value))}
-              />
-            </div>
-            <Connector>% of</Connector>
-          </>
-        )}
+        <Connector>owns</Connector>
+        <div className="w-[4.5rem] shrink-0">
+          <TextInput
+            aria-label={`Percentage, row ${index + 1}`}
+            inputMode="decimal"
+            placeholder={row.ownerIsController ? '0' : '0.00'}
+            className="text-right"
+            value={row.percentText}
+            invalid={has('invalid-percent') || has('percent-precision')}
+            onChange={(e) => onChange(withPercentText(row, e.target.value))}
+          />
+        </div>
+        <Connector>% of</Connector>
 
         <div className="min-w-[8rem] flex-1">
           <TextInput
             aria-label={`Entity name, row ${index + 1}`}
             placeholder={entityPlaceholder}
             value={row.entityName}
-            invalid={has('empty-entity-name') || has('self-ownership')}
+            invalid={
+              has('empty-entity-name') || has('self-ownership') || has('non-commercial-owned')
+            }
             onChange={(e) => onChange(withEntityName(row, e.target.value))}
           />
         </div>
 
-        {/* What the entity is. A trust, foundation or NPO has no shares, so
-            picking one here turns every row naming it into a role row. */}
-        <select
-          aria-label={`Entity type, row ${index + 1}`}
-          value={entityKind}
-          onChange={(e) => onChangeEntityKind(e.target.value as EntityKind)}
-          className="shrink-0 cursor-pointer rounded-pill border-0 bg-mfzBlue-t10 py-1 pl-2.5 pr-1.5 text-small font-medium text-mfzBlue focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deepTeal"
-        >
-          {ENTITY_KINDS.map((kind) => (
-            <option key={kind.value} value={kind.value}>
-              {kind.label}
-            </option>
-          ))}
-        </select>
-
         {/* Control is a property of a natural person, never of a company. This
             is the control a first-time user has to find on their own, so it is
             given a real label and a plain-language hint. */}
-        {!isRoleRow && row.ownerType === 'individual' && !row.ownerIsNominee ? (
+        {row.ownerType === 'individual' && !row.ownerIsNominee ? (
           <FlagBox
             checked={row.ownerIsController}
             onChange={(checked) => onChange({ ...row, ownerIsController: checked })}
@@ -236,7 +252,7 @@ export function LinkRow({
 
         {/* A nominee holds the shares on paper for someone else. Available to a
             company owner too: a corporate nominee is the common arrangement. */}
-        {!isRoleRow && !row.ownerIsController ? (
+        {!isStructure && !row.ownerIsController ? (
           <FlagBox
             checked={row.ownerIsNominee}
             onChange={(checked) => onChange(withNominee(row, checked))}
@@ -260,7 +276,7 @@ export function LinkRow({
 
       {/* The one conditional field on the row: who the shares are really held
           for. Without it the flag would move the ownership nowhere. */}
-      {!isRoleRow && row.ownerIsNominee ? (
+      {!isStructure && row.ownerIsNominee ? (
         <div className="mt-2.5 rounded-input border border-purple bg-purple-t10 px-3 py-2.5 sm:ml-[1.875rem]">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
             <span className="shrink-0 text-small font-medium text-navy">
@@ -289,19 +305,105 @@ export function LinkRow({
         </div>
       ) : null}
 
-      {issues.length > 0 || hint || (row.ownerIsController && !isRoleRow) || (isRoleRow && row.role) ? (
+      {/* The people behind a trust, foundation or NPO. It has no shares, so
+          there is nobody to enter as a percentage of it: these role-holders are
+          its beneficial owners, and they are entered right here rather than on
+          a row of their own. */}
+      {isStructure ? (
+        <div className="mt-2.5 rounded-input border border-purple bg-purple-t10 px-3 py-2.5 sm:ml-[1.875rem]">
+          <span className="text-small font-medium text-navy">
+            People behind {row.ownerName.trim() === '' ? `this ${kindWord}` : row.ownerName}
+          </span>
+          <div className="mt-2 space-y-2">
+            {row.roleHolders.map((holder, holderIndex) => {
+              const holderIssues = issues.filter((issue) => issue.roleHolderId === holder.id)
+              const holderHas = (code: ValidationIssue['code']) =>
+                holderIssues.some((issue) => issue.code === code)
+              return (
+                <div key={holder.id}>
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                    <div className="min-w-[10rem] flex-1">
+                      <TextInput
+                        aria-label={`Person ${holderIndex + 1} name, row ${index + 1}`}
+                        placeholder="Full name"
+                        value={holder.name}
+                        invalid={
+                          holderHas('role-holder-name-required') || holderHas('self-ownership')
+                        }
+                        onChange={(e) => updateHolder({ ...holder, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="w-[11rem] shrink-0">
+                      <select
+                        aria-label={`Person ${holderIndex + 1} role, row ${index + 1}`}
+                        value={holder.role ?? ''}
+                        onChange={(e) =>
+                          updateHolder({
+                            ...holder,
+                            role: (e.target.value || null) as RoleName | null,
+                          })
+                        }
+                        className={`w-full rounded-input border px-2.5 py-2 text-body focus:outline-none focus-visible:outline-none focus-visible:ring-2 ${
+                          holderHas('role-required') || holderHas('duplicate-link')
+                            ? 'border-coral bg-gapTint text-ink focus-visible:ring-coral'
+                            : 'border-fieldBorder bg-white text-ink focus-visible:ring-deepTeal'
+                        }`}
+                      >
+                        <option value="">Select role…</option>
+                        {rolesFor(ownerKind).map((roleName) => (
+                          <option key={roleName} value={roleName}>
+                            {roleName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button
+                      variant="danger"
+                      aria-label={`Remove person ${holderIndex + 1}, row ${index + 1}`}
+                      title="Remove this person"
+                      disabled={row.roleHolders.length <= 1}
+                      onClick={() =>
+                        onChange({
+                          ...row,
+                          roleHolders: row.roleHolders.filter((e) => e.id !== holder.id),
+                        })
+                      }
+                      className="flex h-8 w-8 shrink-0 items-center justify-center p-0 text-lg leading-none"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                  {holderIssues.map((issue) => (
+                    <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onChange({ ...row, roleHolders: [...row.roleHolders, blankRoleHolder()] })
+              }
+            >
+              Add person
+            </Button>
+            <span className="text-[11px] leading-tight text-navy">
+              No percentages: a {kindWord} has no shares, so these role-holders are its beneficial
+              owners.
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {rowIssues.length > 0 || hint || row.ownerIsController ? (
         <div className="mt-2 space-y-1 pl-[1.875rem]">
-          {issues.map((issue) => (
+          {rowIssues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
-          {row.ownerIsController && !isRoleRow ? (
+          {row.ownerIsController ? (
             <p className="text-small text-purple">0% is allowed for a controller.</p>
-          ) : null}
-          {isRoleRow && row.role ? (
-            <p className="text-small text-purple">
-              {row.role} of a {entityKindLabel(entityKind).toLowerCase()} — captured as a beneficial
-              owner, with no percentage.
-            </p>
           ) : null}
           {hint ? <p className="text-small text-muted">{hint}</p> : null}
         </div>

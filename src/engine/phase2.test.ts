@@ -24,23 +24,30 @@ function owns(
   return { id: id(), ownerName, ownerType, ownerIsController: false, percent, entityName }
 }
 
-/** A role row: `ownerName` is `role` of the non-commercial `entityName`. */
-function role(
+/** One person behind a structure: their name, their role, and rarely a type. */
+type Holder = [name: string, role: RoleName | null] | [string, RoleName | null, PartyType]
+
+/**
+ * A trust, foundation or NPO shareholder: it holds `percent` of `entityName`
+ * like any other shareholder, and the people behind it are entered inline on
+ * the same row, with roles instead of percentages.
+ */
+function trust(
   ownerName: string,
-  ownerType: PartyType,
-  roleName: RoleName,
+  percent: number,
   entityName: string,
-  entityKind: EntityKind = 'trust',
+  holders: Holder[],
+  ownerKind: EntityKind = 'trust',
 ): OwnershipLinkInput {
   return {
     id: id(),
     ownerName,
-    ownerType,
+    ownerType: 'company',
     ownerIsController: false,
-    percent: Number.NaN,
+    percent,
     entityName,
-    entityKind,
-    role: roleName,
+    ownerKind,
+    roleHolders: holders.map(([name, role, type]) => ({ id: id(), name, role, type })),
   }
 }
 
@@ -92,9 +99,10 @@ const uboNames = (links: OwnershipLinkInput[], threshold = 25, rp: RelatedPartyL
 describe('non-commercial structures — role-based UBOs', () => {
   /** A trust holding the whole of the Meydan FZ company. */
   const trustOwnsTarget = [
-    owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-    role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
-    role('Aisha Khan', 'individual', 'Beneficiary', 'XYZ Trust'),
+    trust('XYZ Trust', 100, 'ABC LTD', [
+      ['Bob Smith', 'Settlor'],
+      ['Aisha Khan', 'Beneficiary'],
+    ]),
   ]
 
   it('makes the settlor and beneficiary of a trust that owns the target UBOs', () => {
@@ -120,8 +128,19 @@ describe('non-commercial structures — role-based UBOs', () => {
     expect(companyTotals(buildGraph(trustOwnsTarget)).map((c) => c.name)).toEqual(['ABC LTD'])
   })
 
+  it('still counts the trust’s own stake towards the company it holds', () => {
+    const links = [
+      trust('XYZ Trust', 60, 'ABC LTD', [['Bob Smith', 'Settlor']]),
+      owns('Masood', 'individual', 40, 'ABC LTD'),
+    ]
+    expect(validate(links).ok).toBe(true)
+    expect(companyTotals(buildGraph(links))).toEqual([
+      { key: 'abc ltd', name: 'ABC LTD', total: 100 },
+    ])
+  })
+
   it('still holds a commercial company to exactly 100%', () => {
-    const short = [owns('XYZ Trust', 'company', 60, 'ABC LTD'), ...trustOwnsTarget.slice(1)]
+    const short = [trust('XYZ Trust', 60, 'ABC LTD', [['Bob Smith', 'Settlor']])]
     const result = validate(short)
     expect(result.ok).toBe(false)
     expect(result.errors.some((e) => e.message.includes('ABC LTD: owners total 60%'))).toBe(true)
@@ -140,38 +159,41 @@ describe('non-commercial structures — role-based UBOs', () => {
     ])
   })
 
-  it('still reports a trust with no role-holders entered as a gap', () => {
-    const bare = [owns('XYZ Trust', 'company', 100, 'ABC LTD'), owns('Q', 'individual', 100, 'XYZ Holdings')]
-    // XYZ Trust is never marked as a trust here, so it is an ordinary company
-    // with no owners: exactly the existing unidentified-owner case.
-    const result = run(bare.slice(0, 1))
+  it('still reports a trust with nobody entered behind it as a gap', () => {
+    const result = run([trust('XYZ Trust', 100, 'ABC LTD', [])])
     expect(result.unidentified.map((g) => g.name)).toEqual(['XYZ Trust'])
+    expect(result.ubos).toEqual([])
   })
 
   it('makes the role-holders of a qualifying foundation UBOs', () => {
     const links = [
-      owns('Hope Foundation', 'company', 30, 'ABC LTD'),
+      trust(
+        'Hope Foundation',
+        30,
+        'ABC LTD',
+        [
+          ['Layla', 'Founder'],
+          ['Omar', 'Council Member'],
+        ],
+        'foundation',
+      ),
       owns('Masood', 'individual', 70, 'ABC LTD'),
-      role('Layla', 'individual', 'Founder', 'Hope Foundation', 'foundation'),
-      role('Omar', 'individual', 'Council Member', 'Hope Foundation', 'foundation'),
     ]
     expect(uboNames(links)).toEqual(['Layla', 'Masood', 'Omar'])
   })
 
   it('does not make the role-holders of a below-threshold trust UBOs', () => {
     const links = [
-      owns('XYZ Trust', 'company', 20, 'ABC LTD'),
+      trust('XYZ Trust', 20, 'ABC LTD', [['Bob Smith', 'Trustee']]),
       owns('Masood', 'individual', 80, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Trustee', 'XYZ Trust'),
     ]
     expect(uboNames(links)).toEqual(['Masood'])
   })
 
   it('says why a below-threshold trust’s role-holder was not counted', () => {
     const links = [
-      owns('XYZ Trust', 'company', 20, 'ABC LTD'),
+      trust('XYZ Trust', 20, 'ABC LTD', [['Bob Smith', 'Trustee']]),
       owns('Masood', 'individual', 80, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Trustee', 'XYZ Trust'),
     ]
     expect(run(links).excludedRoleHolders).toEqual([
       {
@@ -186,19 +208,17 @@ describe('non-commercial structures — role-based UBOs', () => {
 
   it('counts the same trust at 10% that it refused at 25%', () => {
     const links = [
-      owns('XYZ Trust', 'company', 20, 'ABC LTD'),
+      trust('XYZ Trust', 20, 'ABC LTD', [['Bob Smith', 'Trustee']]),
       owns('Masood', 'individual', 80, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Trustee', 'XYZ Trust'),
     ]
     expect(uboNames(links, 10)).toEqual(['Bob Smith', 'Masood'])
   })
 
-  it('lets a trust hold shares as an owner and still capture its roles', () => {
+  it('carries a trust’s roles down through an intermediary company', () => {
     const links = [
-      owns('XYZ Trust', 'company', 60, 'Mid Co'),
+      trust('XYZ Trust', 60, 'Mid Co', [['Bob Smith', 'Protector']]),
       owns('Masood', 'individual', 40, 'Mid Co'),
       owns('Mid Co', 'company', 100, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Protector', 'XYZ Trust'),
     ]
     const result = run(links)
     expect(result.ubos.map((u) => u.name).sort()).toEqual(['Bob Smith', 'Masood'])
@@ -208,24 +228,41 @@ describe('non-commercial structures — role-based UBOs', () => {
     ])
   })
 
-  it('resolves the kind per entity name, so a row typed earlier becomes a role row', () => {
-    // The kind is marked on the second row only; the first must follow it.
+  it('resolves the kind per shareholder name, so another row naming it follows', () => {
+    // The trust holds stakes in two companies; only the first row says what it
+    // is, and the second must be read as the same trust all the same.
     const links: OwnershipLinkInput[] = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      { ...role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'), entityKind: undefined },
-      role('Aisha Khan', 'individual', 'Beneficiary', 'XYZ Trust'),
+      trust('XYZ Trust', 60, 'Mid Co', [['Bob Smith', 'Settlor']]),
+      owns('Masood', 'individual', 40, 'Mid Co'),
+      { ...owns('XYZ Trust', 'company', 30, 'ABC LTD'), ownerKind: undefined },
+      owns('Mid Co', 'company', 70, 'ABC LTD'),
     ]
     const graph = buildGraph(links)
     expect(graph.nodeByKey.get('xyz trust')?.entityKind).toBe('trust')
-    expect(graph.links.filter((l) => l.isRole)).toHaveLength(2)
-    expect(uboNames(links)).toEqual(['Aisha Khan', 'Bob Smith'])
+    expect(validate(links).ok).toBe(true)
+    // 60% of 70% plus 30% = 72%, so the trust clears the threshold either way.
+    expect(uboNames(links)).toEqual(['Bob Smith', 'Masood'])
+  })
+
+  it('counts a role once when the same people are held on two of the trust’s rows', () => {
+    const holders: Array<[string, RoleName]> = [['Bob Smith', 'Settlor']]
+    const links = [
+      trust('XYZ Trust', 60, 'Mid Co', holders),
+      owns('Masood', 'individual', 40, 'Mid Co'),
+      trust('XYZ Trust', 30, 'ABC LTD', holders),
+      owns('Mid Co', 'company', 70, 'ABC LTD'),
+    ]
+    expect(validate(links).ok).toBe(true)
+    expect(buildGraph(links).links.filter((l) => l.isRole)).toHaveLength(1)
+    expect(run(links).ubos.find((u) => u.name === 'Bob Smith')?.roles).toHaveLength(1)
   })
 
   it('allows one person to hold two roles in the same trust', () => {
     const links = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
-      role('Bob Smith', 'individual', 'Beneficiary', 'XYZ Trust'),
+      trust('XYZ Trust', 100, 'ABC LTD', [
+        ['Bob Smith', 'Settlor'],
+        ['Bob Smith', 'Beneficiary'],
+      ]),
     ]
     expect(validate(links).ok).toBe(true)
     expect(run(links).ubos.find((u) => u.name === 'Bob Smith')?.roles).toHaveLength(2)
@@ -233,48 +270,81 @@ describe('non-commercial structures — role-based UBOs', () => {
 
   it('rejects a repeat of the same role for the same person', () => {
     const links = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
-      role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
+      trust('XYZ Trust', 100, 'ABC LTD', [
+        ['Bob Smith', 'Settlor'],
+        ['Bob Smith', 'Settlor'],
+      ]),
     ]
-    const errors = validate(links).errors
-    expect(errors.some((e) => e.code === 'duplicate-link')).toBe(true)
+    expect(validate(links).errors.some((e) => e.code === 'duplicate-link')).toBe(true)
   })
 
-  it('blocks a role row with no role chosen', () => {
-    const links: OwnershipLinkInput[] = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      { ...role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'), role: null },
-    ]
+  it('blocks a role-holder with no role chosen', () => {
+    const links = [trust('XYZ Trust', 100, 'ABC LTD', [['Bob Smith', null]])]
     const errors = validate(links).errors
     expect(errors.some((e) => e.code === 'role-required')).toBe(true)
   })
 
+  it('blocks a role chosen with nobody named', () => {
+    const links = [trust('XYZ Trust', 100, 'ABC LTD', [['', 'Settlor']])]
+    const errors = validate(links).errors
+    expect(errors.some((e) => e.code === 'role-holder-name-required')).toBe(true)
+  })
+
+  it('ignores an untouched blank role-holder line', () => {
+    const links = [
+      trust('XYZ Trust', 100, 'ABC LTD', [
+        ['Bob Smith', 'Settlor'],
+        ['', null],
+      ]),
+    ]
+    expect(validate(links).ok).toBe(true)
+    expect(uboNames(links)).toEqual(['Bob Smith'])
+  })
+
   it('rejects a role that does not belong to the kind', () => {
-    const links: OwnershipLinkInput[] = [
-      owns('Hope Foundation', 'company', 100, 'ABC LTD'),
-      // 'Trustee' is a trust role, not a foundation role.
-      { ...role('Bob Smith', 'individual', 'Trustee', 'Hope Foundation', 'foundation') },
+    // 'Trustee' is a trust role, not a foundation role.
+    const links = [
+      trust('Hope Foundation', 100, 'ABC LTD', [['Bob Smith', 'Trustee']], 'foundation'),
     ]
     expect(validate(links).errors.some((e) => e.code === 'role-required')).toBe(true)
   })
 
+  it('blocks a person holding a role in themselves', () => {
+    const links = [trust('XYZ Trust', 100, 'ABC LTD', [['xyz trust', 'Settlor']])]
+    expect(validate(links).errors.some((e) => e.code === 'self-ownership')).toBe(true)
+  })
+
   it('records a corporate trustee’s role without calling the company a UBO', () => {
     const links = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      role('Fiduciary Services Ltd', 'company', 'Trustee', 'XYZ Trust'),
-      role('Bob Smith', 'individual', 'Beneficiary', 'XYZ Trust'),
+      trust('XYZ Trust', 100, 'ABC LTD', [
+        ['Fiduciary Services Ltd', 'Trustee', 'company'],
+        ['Bob Smith', 'Beneficiary'],
+      ]),
     ]
     expect(uboNames(links)).toEqual(['Bob Smith'])
   })
 
-  it('reports an entity entered as two different kinds', () => {
-    const links: OwnershipLinkInput[] = [
-      owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-      role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
-      { ...role('Aisha Khan', 'individual', 'Founder', 'XYZ Trust', 'foundation') },
+  it('blocks a percentage entered into a trust, and says where its people go', () => {
+    // The mistake the old entity-side dropdown invited: typing the trust on the
+    // "% of" side. A trust has no shares, so this row cannot mean anything.
+    const links = [
+      trust('XYZ Trust', 100, 'ABC LTD', [['Bob Smith', 'Settlor']]),
+      owns('Aisha Khan', 'individual', 100, 'XYZ Trust'),
     ]
-    expect(validate(links).errors.some((e) => e.code === 'entity-kind-conflict')).toBe(true)
+    const errors = validate(links).errors
+    expect(errors.some((e) => e.code === 'non-commercial-owned')).toBe(true)
+    expect(errors.find((e) => e.code === 'non-commercial-owned')?.message).toContain(
+      'role-holders on its own shareholder row',
+    )
+  })
+
+  it('reports a shareholder entered as two different kinds', () => {
+    const links: OwnershipLinkInput[] = [
+      trust('XYZ Trust', 60, 'ABC LTD', [['Bob Smith', 'Settlor']]),
+      trust('XYZ Trust', 40, 'Mid Co', [['Aisha Khan', 'Founder']], 'foundation'),
+      owns('Mid Co', 'company', 40, 'ABC LTD'),
+    ]
+    expect(validate(links).errors.some((e) => e.code === 'owner-kind-conflict')).toBe(true)
   })
 })
 
@@ -529,9 +599,10 @@ describe('related-party aggregation', () => {
       [spouses, [related('Spouses', 'Husain', 'Layla')]],
       [
         [
-          owns('XYZ Trust', 'company', 100, 'ABC LTD'),
-          role('Bob Smith', 'individual', 'Settlor', 'XYZ Trust'),
-          role('Aisha Khan', 'individual', 'Beneficiary', 'XYZ Trust'),
+          trust('XYZ Trust', 100, 'ABC LTD', [
+            ['Bob Smith', 'Settlor'],
+            ['Aisha Khan', 'Beneficiary'],
+          ]),
         ],
         [related('Spouses', 'Bob Smith', 'Aisha Khan')],
       ],

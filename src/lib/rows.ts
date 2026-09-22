@@ -6,7 +6,7 @@ import {
   type OwnershipLinkInput,
   type PartyType,
   type RelatedPartyLinkInput,
-  type RoleName,
+  type RoleHolderInput,
 } from '../engine'
 import { SAMPLE_LINKS } from '../engine/sample'
 
@@ -24,9 +24,9 @@ export interface LinkRowState extends OwnershipLinkInput {
    * as untouched so a prefill does not fire off that row's inline errors.
    */
   entityPrefilled: boolean
-  /** Always set on a row, unlike the engine input where it is optional. */
-  entityKind: EntityKind
-  role: RoleName | null
+  /** Always set on a row, unlike the engine input where these are optional. */
+  ownerKind: EntityKind
+  roleHolders: RoleHolderInput[]
   ownerIsNominee: boolean
   nominatorName: string
   nominatorType: PartyType
@@ -42,7 +42,7 @@ function nextId(prefix = 'row'): string {
   return `${prefix}-${counter}`
 }
 
-export function blankRow(entityName = '', entityKind: EntityKind = 'company'): LinkRowState {
+export function blankRow(entityName = ''): LinkRowState {
   return {
     id: nextId(),
     ownerName: '',
@@ -52,12 +52,17 @@ export function blankRow(entityName = '', entityKind: EntityKind = 'company'): L
     percentText: '',
     entityName,
     entityPrefilled: entityName !== '',
-    entityKind,
-    role: null,
+    ownerKind: 'company',
+    roleHolders: [],
     ownerIsNominee: false,
     nominatorName: '',
     nominatorType: 'individual',
   }
+}
+
+/** A fresh, empty line in a structure's inline list of people. */
+export function blankRoleHolder(): RoleHolderInput {
+  return { id: nextId('person'), name: '', role: null }
 }
 
 export function blankRelatedRow(): RelatedRowState {
@@ -70,18 +75,27 @@ export function withEntityName(row: LinkRowState, entityName: string): LinkRowSt
 }
 
 /**
- * Changing what the entity is.
+ * Changing what the shareholder is.
  *
  * A role that does not belong to the new kind is dropped — Trustee means
- * nothing to a foundation — but nothing else is cleared. The percentage and the
- * flags are simply not read on a role row, so switching back and forth is
- * reversible and never loses what the agent typed.
+ * nothing to a foundation — but the people themselves are kept, and so is
+ * everything else on the row. A structure switched back to Company keeps its
+ * list out of sight rather than losing it, so a mis-click costs nothing.
+ *
+ * A trust is offered its first empty line straight away: the whole point of
+ * marking one is to say who is behind it, and an empty panel with nothing to
+ * type into reads as a dead end.
  */
-export function withEntityKind(row: LinkRowState, entityKind: EntityKind): LinkRowState {
+export function withOwnerKind(row: LinkRowState, ownerKind: EntityKind): LinkRowState {
+  const roleHolders = row.roleHolders.map((holder) => ({
+    ...holder,
+    role: isRoleValid(ownerKind, holder.role) ? holder.role : null,
+  }))
   return {
     ...row,
-    entityKind,
-    role: isRoleValid(entityKind, row.role) ? row.role : null,
+    ownerKind,
+    roleHolders:
+      ownerKind !== 'company' && roleHolders.length === 0 ? [blankRoleHolder()] : roleHolders,
   }
 }
 
@@ -94,12 +108,18 @@ export function withPercentText(row: LinkRowState, percentText: string): LinkRow
   return { ...row, percentText, percent: parsePercent(percentText) }
 }
 
-/** Switching an owner to a company drops the controller flag, which is person-only. */
+/**
+ * Switching an owner to a company drops the controller flag, which is
+ * person-only. Switching back to an individual drops the legal type with it: a
+ * person is not a trust, and leaving the kind set would keep the row asking for
+ * role-holders behind somebody's name.
+ */
 export function withOwnerType(row: LinkRowState, ownerType: PartyType): LinkRowState {
   return {
     ...row,
     ownerType,
     ownerIsController: ownerType === 'individual' ? row.ownerIsController : false,
+    ownerKind: ownerType === 'individual' ? 'company' : row.ownerKind,
   }
 }
 
@@ -120,7 +140,8 @@ export function isRowDirty(row: LinkRowState): boolean {
   return (
     row.ownerName.trim() !== '' ||
     (!row.entityPrefilled && row.entityName.trim() !== '') ||
-    row.percentText.trim() !== ''
+    row.percentText.trim() !== '' ||
+    row.roleHolders.some((holder) => holder.name.trim() !== '' || holder.role !== null)
   )
 }
 

@@ -1,5 +1,5 @@
 /**
- * What sits on the "% of" side of a row.
+ * What kind of legal entity a corporate shareholder is.
  *
  * A commercial company has shares, so its owners must total 100%. A trust, a
  * foundation and an NPO have none: the people behind them hold *roles*, and the

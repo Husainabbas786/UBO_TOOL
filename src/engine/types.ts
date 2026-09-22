@@ -6,6 +6,22 @@ export type { EntityKind, RoleName }
 export type PartyType = 'individual' | 'company'
 
 /**
+ * One person behind a trust, foundation or NPO: a name and the role they hold.
+ * No percentage — these structures have no share capital to apportion.
+ */
+export interface RoleHolderInput {
+  /** Stable id, used to attach a validation error back to the inline entry. */
+  id: string
+  name: string
+  /**
+   * Almost always a natural person. A corporate trustee is possible, and is
+   * recorded so the chart shows it, but a company is never labelled a UBO.
+   */
+  type?: PartyType
+  role: RoleName | null
+}
+
+/**
  * One row of the Ownership Links builder: `owner` owns `percent` % of `entity`.
  * This is the only shape the UI has to produce; everything else is derived.
  *
@@ -20,19 +36,23 @@ export interface OwnershipLinkInput {
   /** Manual compliance flag: this person is a UBO by control, whatever they own. */
   ownerIsController: boolean
   percent: number
-  /** Entities are legal entities — an individual cannot be owned. */
+  /**
+   * What the shareholder is, when it is not a natural person. Defaults to
+   * 'company' and is only read when `ownerType` is 'company'. Declared per row
+   * but resolved per shareholder *name*: marking "Smith Family Trust" a trust
+   * on one row makes it a trust on every row it appears on, the same way the
+   * controller flag follows a person.
+   */
+  ownerKind?: EntityKind
+  /**
+   * The people behind a trust, foundation or NPO shareholder, captured inline
+   * on its row. Only read when the resolved `ownerKind` is non-commercial;
+   * those structures have no shares, so their beneficial owners are the people
+   * holding roles in them rather than anyone holding a percentage.
+   */
+  roleHolders?: RoleHolderInput[]
+  /** Entities are commercial companies — an individual cannot be owned. */
   entityName: string
-  /**
-   * What the entity is. Defaults to 'company'. Declared per row but resolved per
-   * entity *name*: marking "XYZ Trust" a trust on one row makes it a trust on
-   * every row it appears on, the same way the controller flag follows a person.
-   */
-  entityKind?: EntityKind
-  /**
-   * The owner's role in a non-commercial entity. Only read when the resolved
-   * entity kind is a trust, foundation or NPO, where it replaces the percentage.
-   */
-  role?: RoleName | null
   /**
    * This shareholding is held on paper by the owner for someone else. The
    * percentage still counts towards the entity's 100%, but the ownership is
@@ -127,7 +147,9 @@ export type ValidationCode =
   | 'circular-ownership'
   | 'no-target'
   | 'role-required'
-  | 'entity-kind-conflict'
+  | 'role-holder-name-required'
+  | 'owner-kind-conflict'
+  | 'non-commercial-owned'
   | 'nominator-required'
   | 'self-nomination'
   | 'related-party-too-few'
@@ -139,6 +161,8 @@ export interface ValidationIssue {
   message: string
   /** Set when the issue belongs to a single builder row. */
   linkId?: string
+  /** Set when the issue belongs to one inline role-holder on a row. */
+  roleHolderId?: string
   /** Set when the issue belongs to a party rather than a row. */
   nodeKey?: string
   /** Set when the issue belongs to a related-party link. */
@@ -178,7 +202,7 @@ export type UboStatus =
 export type UboBasisPart = 'Ownership' | 'Control' | 'Role' | 'Related-party aggregation'
 export type UboBasis = string
 
-/** A role held in a non-commercial entity, as captured on a role row. */
+/** A role held in a non-commercial entity, as captured on its shareholder row. */
 export interface RoleClaim {
   entityKey: string
   entityName: string

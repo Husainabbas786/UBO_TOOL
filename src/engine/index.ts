@@ -16,7 +16,8 @@ export {
   controlLinks,
   roleLinks,
   nomineeLinks,
-  resolveEntityKinds,
+  resolveOwnerKinds,
+  namedRoleHolders,
   findCycle,
 } from './normalize'
 export { validate, companyTotals, MAX_LINKS, TOTAL_TOLERANCE } from './validate'

@@ -5,7 +5,7 @@ import {
   companyTotals,
   DEFAULT_THRESHOLD,
   defaultTargetKey,
-  resolveEntityKinds,
+  resolveOwnerKinds,
   TOTAL_TOLERANCE,
   validate,
   toKey,
@@ -21,7 +21,7 @@ import {
   isRelatedRowDirty,
   isRowDirty,
   nextCompanyToComplete,
-  withEntityKind,
+  withOwnerKind,
   type LinkRowState,
   type RelatedRowState,
 } from './lib/rows'
@@ -48,18 +48,18 @@ export default function App() {
   const totals = useMemo(() => companyTotals(graph), [graph])
 
   /*
-   * What each row's entity is, resolved across every row that names it.
+   * What each row's shareholder is, resolved across every row that names it.
    *
-   * The kind belongs to the entity, not to the row: marking "XYZ Trust" a trust
-   * once has to turn every row naming it into a role row, including the ones
-   * typed before the kind was set.
+   * The legal type belongs to the shareholder, not to the row: marking "Smith
+   * Family Trust" a trust once has to show it as a trust wherever else it holds
+   * shares, including on rows typed before the type was set.
    */
-  const entityKinds = useMemo(() => {
-    const kinds = resolveEntityKinds(rows)
+  const ownerKinds = useMemo(() => {
+    const kinds = resolveOwnerKinds(rows)
     return new Map<string, EntityKind>(
       rows.map((row) => {
-        const key = toKey(row.entityName)
-        return [row.id, key === '' ? row.entityKind : (kinds.get(key) ?? 'company')]
+        const key = toKey(row.ownerName)
+        return [row.id, key === '' ? row.ownerKind : (kinds.get(key) ?? 'company')]
       }),
     )
   }, [rows])
@@ -147,10 +147,26 @@ export default function App() {
     setRows((current) => {
       const previous = current.find((row) => row.id === updated.id)
       const next = current.map((row) => (row.id === updated.id ? updated : row))
+      const ownerKey = toKey(updated.ownerName)
+      if (ownerKey === '') return next
+
+      /*
+       * The people behind a trust belong to the trust, not to one of its rows.
+       * A structure holding stakes in two companies has two rows, and its
+       * people have to read the same on both — so an edit to the list is
+       * copied to every row naming it, the same way the kind is.
+       */
+      if (previous !== undefined && previous.roleHolders !== updated.roleHolders) {
+        return next.map((row) =>
+          row.id !== updated.id && row.ownerType === 'company' && toKey(row.ownerName) === ownerKey
+            ? { ...row, roleHolders: updated.roleHolders }
+            : row,
+        )
+      }
+
       const toggledControl =
         previous !== undefined && previous.ownerIsController !== updated.ownerIsController
-      const ownerKey = toKey(updated.ownerName)
-      if (!toggledControl || updated.ownerType !== 'individual' || ownerKey === '') return next
+      if (!toggledControl || updated.ownerType !== 'individual') return next
       return next.map((row) =>
         row.ownerType === 'individual' && !row.ownerIsNominee && toKey(row.ownerName) === ownerKey
           ? { ...row, ownerIsController: updated.ownerIsController }
@@ -160,22 +176,32 @@ export default function App() {
   }
 
   /**
-   * What an entity is belongs to the entity, not to the row, so picking a kind
-   * sets it on every row naming that entity. Without this, marking the second
-   * row a trust would leave the first still asking for a percentage of it.
+   * What a shareholder is belongs to the shareholder, not to the row, so
+   * picking a legal type sets it on every row naming that shareholder. Without
+   * this, marking a trust on its second row would leave the first still
+   * showing it as an ordinary company.
    */
-  const handleChangeEntityKind = (row: LinkRowState, kind: EntityKind) => {
-    const entityKey = toKey(row.entityName)
-    setRows((current) =>
-      current.map((candidate) => {
-        if (entityKey === '') {
-          return candidate.id === row.id ? withEntityKind(candidate, kind) : candidate
+  const handleChangeOwnerKind = (row: LinkRowState, kind: EntityKind) => {
+    const ownerKey = toKey(row.ownerName)
+    setRows((current) => {
+      const next = current.map((candidate) => {
+        if (ownerKey === '') {
+          return candidate.id === row.id ? withOwnerKind(candidate, kind) : candidate
         }
-        return toKey(candidate.entityName) === entityKey
-          ? withEntityKind(candidate, kind)
+        return candidate.ownerType === 'company' && toKey(candidate.ownerName) === ownerKey
+          ? withOwnerKind(candidate, kind)
           : candidate
-      }),
-    )
+      })
+      // Every row for this structure shows one list, so they all take the one
+      // the edited row now holds — including the blank line a new trust gets.
+      const source = next.find((candidate) => candidate.id === row.id)
+      if (ownerKey === '' || source === undefined) return next
+      return next.map((candidate) =>
+        candidate.ownerType === 'company' && toKey(candidate.ownerName) === ownerKey
+          ? { ...candidate, roleHolders: source.roleHolders }
+          : candidate,
+      )
+    })
   }
 
   const handleChangeRelatedRow = (updated: RelatedRowState) =>
@@ -227,9 +253,9 @@ export default function App() {
             companyTotals={totalsWithStatus}
             partyIssues={partyIssues}
             entityPlaceholder={entityPlaceholder}
-            entityKinds={entityKinds}
+            ownerKinds={ownerKinds}
             onChangeRow={handleChangeRow}
-            onChangeEntityKind={handleChangeEntityKind}
+            onChangeOwnerKind={handleChangeOwnerKind}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
             onAddRow={handleAddRow}
           />

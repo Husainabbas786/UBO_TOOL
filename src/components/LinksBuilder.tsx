@@ -15,10 +15,10 @@ interface LinksBuilderProps {
   partyIssues: ValidationIssue[]
   /** What an empty company field should ask for, given what is entered so far. */
   entityPlaceholder: string
-  /** The resolved kind of the entity each row names, keyed by row id. */
-  entityKinds: Map<string, EntityKind>
+  /** The resolved legal type of each row's shareholder, keyed by row id. */
+  ownerKinds: Map<string, EntityKind>
   onChangeRow: (row: LinkRowState) => void
-  onChangeEntityKind: (row: LinkRowState, kind: EntityKind) => void
+  onChangeOwnerKind: (row: LinkRowState, kind: EntityKind) => void
   onRemoveRow: (id: string) => void
   onAddRow: () => void
 }
@@ -30,9 +30,9 @@ export function LinksBuilder({
   companyTotals,
   partyIssues,
   entityPlaceholder,
-  entityKinds,
+  ownerKinds,
   onChangeRow,
-  onChangeEntityKind,
+  onChangeOwnerKind,
   onRemoveRow,
   onAddRow,
 }: LinksBuilderProps) {
@@ -49,10 +49,10 @@ export function LinksBuilder({
             issues={issuesByRow.get(row.id) ?? []}
             hint={incompleteRowIds.has(row.id) ? 'Complete this row or remove it.' : undefined}
             entityPlaceholder={entityPlaceholder}
-            entityKind={entityKinds.get(row.id) ?? 'company'}
+            ownerKind={ownerKinds.get(row.id) ?? 'company'}
             canRemove={rows.length > 1}
             onChange={onChangeRow}
-            onChangeEntityKind={(kind) => onChangeEntityKind(row, kind)}
+            onChangeOwnerKind={(kind) => onChangeOwnerKind(row, kind)}
             onRemove={() => onRemoveRow(row.id)}
           />
         ))}
