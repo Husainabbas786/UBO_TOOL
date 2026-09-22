@@ -164,6 +164,35 @@ export default function App() {
         )
       }
 
+      /*
+       * The other direction: naming a structure that is already in the
+       * builder. The kind is resolved by name, so the new row turns into a
+       * trust the moment it is typed — and would then show an empty list of
+       * people, as though the ones entered on the first row had been lost.
+       * They have not: the engine unions them. The row adopts them so the
+       * screen says the same thing the calculation does.
+       */
+      if (
+        updated.ownerType === 'company' &&
+        updated.roleHolders.length === 0 &&
+        (previous === undefined ||
+          previous.ownerType !== updated.ownerType ||
+          toKey(previous.ownerName) !== ownerKey)
+      ) {
+        const sibling = next.find(
+          (row) =>
+            row.id !== updated.id &&
+            row.ownerType === 'company' &&
+            toKey(row.ownerName) === ownerKey &&
+            row.roleHolders.length > 0,
+        )
+        if (sibling) {
+          return next.map((row) =>
+            row.id === updated.id ? { ...row, roleHolders: sibling.roleHolders } : row,
+          )
+        }
+      }
+
       const toggledControl =
         previous !== undefined && previous.ownerIsController !== updated.ownerIsController
       if (!toggledControl || updated.ownerType !== 'individual') return next

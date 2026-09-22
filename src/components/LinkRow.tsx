@@ -158,7 +158,14 @@ export function LinkRow({
   onChangeOwnerKind,
   onRemove,
 }: LinkRowProps) {
-  const has = (code: ValidationIssue['code']) => issues.some((issue) => issue.code === code)
+  /*
+   * Errors belonging to the row itself. A person's own errors sit under their
+   * line, and are kept out of here: a role-holder named after the trust is the
+   * holder's mistake, and reddening the shareholder and company boxes for it
+   * would point the agent at two fields that are perfectly correct.
+   */
+  const rowIssues = issues.filter((issue) => issue.roleHolderId === undefined)
+  const has = (code: ValidationIssue['code']) => rowIssues.some((issue) => issue.code === code)
   /*
    * A trust, foundation or NPO holds its stake like any other shareholder, but
    * has no shareholders of its own: the people behind it hold roles, and they
@@ -167,8 +174,6 @@ export function LinkRow({
    */
   const isStructure = isNonCommercial(ownerKind)
 
-  /** Errors belonging to the row itself; a person's own sit under their line. */
-  const rowIssues = issues.filter((issue) => issue.roleHolderId === undefined)
   const kindWord = entityKindLabel(ownerKind).toLowerCase()
 
   const updateHolder = (holder: RoleHolderInput) =>
