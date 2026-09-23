@@ -300,6 +300,28 @@ export interface ExcludedRoleHolder {
   entities: Array<{ name: string; kindLabel: string; role: RoleName; effectivePercent: number }>
 }
 
+/**
+ * One parcel of shares held on paper by somebody other than its real owner.
+ *
+ * The nominator is already reported as the beneficial owner. This records the
+ * arrangement itself, which is a fact the file has to carry in its own right:
+ * a reviewer needs to see whose name is on the register and who is actually
+ * behind it, not just the conclusion.
+ */
+export interface NomineeArrangement {
+  /** The person or company whose name is on the shares. */
+  nomineeKey: string
+  nomineeName: string
+  /** The company whose shares are held. */
+  entityKey: string
+  entityName: string
+  /** The actual shareholder, assessed as the beneficial owner. */
+  nominatorKey: string
+  nominatorName: string
+  /** The size of the parcel, as entered. */
+  percent: number
+}
+
 /** A company on a path to the target, to be screened in the ERP. */
 export interface IntermediaryCompany {
   key: string
@@ -353,6 +375,8 @@ export interface CalculationResult {
   excludedRoleHolders: ExcludedRoleHolder[]
   /** Every related-party group, qualifying or not, highest total first. */
   relatedGroups: RelatedPartyGroup[]
+  /** Every shareholding held through a nominee, for the summary. */
+  nominees: NomineeArrangement[]
   /** Total parties considered, for the summary note. */
   entityCount: number
   /** Total paths considered, for the summary note. */

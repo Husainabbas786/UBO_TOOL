@@ -3,6 +3,7 @@ import {
   type CalculationResult,
   type ExcludedController,
   type ExcludedRoleHolder,
+  type NomineeArrangement,
   type RelatedPartyGroup,
   type UboSummaryEntry,
 } from '../../engine'
@@ -100,6 +101,18 @@ function describeRoleExclusion(entry: ExcludedRoleHolder, threshold: number): st
 }
 
 /**
+ * One line per nominee arrangement: whose name is on the shares, in which
+ * company, and who is actually behind them. The parenthetical is there because
+ * the same person appears as a UBO further up the summary, and a reviewer
+ * should not have to work out for themselves why.
+ */
+function describeNominee(entry: NomineeArrangement): string {
+  return ` holds shares in ${entry.entityName} as nominee for ${entry.nominatorName} (${formatPercent(
+    entry.percent,
+  )}%; the nominator is assessed as the beneficial owner).`
+}
+
+/**
  * One line per group, in the wording Compliance asked for: who was combined,
  * what each holds, what it comes to, and why that crossed the line.
  */
@@ -149,6 +162,23 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {/* Who holds the shares is not always who owns them. The nominator is
+          already listed as a UBO above; this records the arrangement that put
+          somebody else's name on the register. */}
+      {result.nominees.length > 0 ? (
+        <div className="rounded-card border border-steelBlue bg-infoTint px-4 py-3">
+          <p className="text-body font-semibold text-navy">Nominee arrangements</p>
+          <ul className="mt-1.5 space-y-1 text-body text-navy">
+            {result.nominees.map((entry) => (
+              <li key={`${entry.nomineeKey}>${entry.entityKey}>${entry.nominatorKey}`}>
+                <span className="font-semibold">{entry.nomineeName}</span>
+                {describeNominee(entry)}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {/* Aggregation is a manual judgement, so it says exactly what was added

@@ -456,6 +456,58 @@ describe('nominee shareholders', () => {
     expect(validate(links).errors.some((e) => e.code === 'self-nomination')).toBe(true)
   })
 
+  /*
+   * The arrangement is a reported fact in its own right, not just an input to
+   * the ownership maths: the register says one name and the beneficial owner
+   * is another, and a file that shows only the conclusion has lost that.
+   */
+  it('reports the arrangement itself, while the nominator stays the UBO', () => {
+    const result = run(nomineeHoldsAll)
+    expect(result.nominees).toEqual([
+      {
+        nomineeKey: 'ali hassan',
+        nomineeName: 'Ali Hassan',
+        entityKey: 'abc ltd',
+        entityName: 'ABC LTD',
+        nominatorKey: 'husain',
+        nominatorName: 'Husain',
+        percent: 100,
+      },
+    ])
+    expect(result.ubos.map((u) => u.name)).toEqual(['Husain'])
+  })
+
+  it('reports every arrangement when there is more than one', () => {
+    const links = [
+      nominee('Ali Hassan', 40, 'ABC LTD', 'Husain'),
+      nominee('Sara Noor', 35, 'ABC LTD', 'Layla'),
+      owns('Masood', 'individual', 25, 'ABC LTD'),
+    ]
+    const result = run(links)
+    expect(result.nominees.map((n) => [n.nomineeName, n.entityName, n.nominatorName])).toEqual([
+      ['Ali Hassan', 'ABC LTD', 'Husain'],
+      ['Sara Noor', 'ABC LTD', 'Layla'],
+    ])
+    expect(result.ubos.map((u) => u.name).sort()).toEqual(['Husain', 'Layla', 'Masood'])
+  })
+
+  it('reports nothing for a structure with no nominee in it', () => {
+    expect(run(SAMPLE_LINKS).nominees).toEqual([])
+  })
+
+  it('reports the nominee parcel without touching the shares they own outright', () => {
+    const links = [
+      nominee('Ali Hassan', 60, 'ABC LTD', 'Husain'),
+      owns('Ali Hassan', 'individual', 40, 'ABC LTD'),
+    ]
+    const result = run(links)
+    expect(result.nominees.map((n) => [n.nomineeName, n.percent])).toEqual([['Ali Hassan', 60]])
+    expect(result.ubos.map((u) => [u.name, u.totalPercent])).toEqual([
+      ['Husain', 60],
+      ['Ali Hassan', 40],
+    ])
+  })
+
   it('reports a nominator entered as an individual on one row and a company on another', () => {
     const links = [
       nominee('Ali Hassan', 50, 'ABC LTD', 'Husain', 'company'),

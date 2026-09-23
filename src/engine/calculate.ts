@@ -8,6 +8,7 @@ import {
   type ExcludedController,
   type ExcludedRoleHolder,
   type IntermediaryCompany,
+  type NomineeArrangement,
   type OwnershipGraph,
   type OwnershipLinkInput,
   type OwnershipPath,
@@ -420,6 +421,30 @@ export function calculate(
     .filter((gap) => gap.effectivePercent > 0 && atLeast(gap.effectivePercent, threshold))
     .sort((a, b) => b.effectivePercent - a.effectivePercent || a.name.localeCompare(b.name))
 
+  /*
+   * The nominee arrangements, as arrangements.
+   *
+   * Every ownership figure above already treats the nominator as the holder,
+   * so nothing here changes who is a UBO. What it adds is the arrangement
+   * itself: the register says one name, the beneficial owner is another, and
+   * a compliance file that reports only the conclusion has lost the fact.
+   */
+  const nominees: NomineeArrangement[] = graph.links
+    .filter((link) => link.nominatorKey !== null)
+    .map((link) => ({
+      nomineeKey: link.ownerKey,
+      nomineeName: nameOf(link.ownerKey),
+      entityKey: link.entityKey,
+      entityName: nameOf(link.entityKey),
+      nominatorKey: link.nominatorKey as string,
+      nominatorName: nameOf(link.nominatorKey as string),
+      percent: round2(link.percent),
+    }))
+    .sort(
+      (a, b) =>
+        a.nomineeName.localeCompare(b.nomineeName) || a.entityName.localeCompare(b.entityName),
+    )
+
   return {
     target,
     graph,
@@ -432,6 +457,7 @@ export function calculate(
     excludedControllers,
     excludedRoleHolders,
     relatedGroups,
+    nominees,
     entityCount: graph.nodes.length,
     pathCount: paths.length,
   }
