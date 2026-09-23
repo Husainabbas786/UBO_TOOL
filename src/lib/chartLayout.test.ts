@@ -130,3 +130,62 @@ describe('nominee holdings on the chart', () => {
     expect(edges.every((edge) => edge.tone === 'ownership')).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Management sits beside the company, not inside the ownership
+// ---------------------------------------------------------------------------
+
+describe('management on the chart', () => {
+  const plain = [
+    owns('Masood', 'individual', 25, 'ABC LTD'),
+    owns('XYZ Ltd', 'company', 75, 'ABC LTD'),
+    owns('Husain', 'individual', 100, 'XYZ Ltd'),
+  ]
+
+  const withBoard = () => {
+    const graph = buildGraph(plain)
+    const targetKey = defaultTargetKey(graph) as string
+    return layoutChart(
+      calculate(plain, {
+        targetKey,
+        threshold: 25,
+        management: [
+          { id: 'm1', name: 'Jane Doe', designation: 'Director' },
+          { id: 'm2', name: 'John Roe', designation: 'Manager' },
+        ],
+      }),
+    )
+  }
+
+  it('draws one box per officer, labelled with the designation', () => {
+    const officers = withBoard().nodes.filter((node) => node.isManagement)
+    expect(officers.map((node) => [node.name, node.subLabel])).toEqual([
+      ['Jane Doe', 'Director'],
+      ['John Roe', 'Manager'],
+    ])
+    expect(officers.every((node) => node.isUbo === false)).toBe(true)
+  })
+
+  it('places them to the side of the Meydan FZ company, never above it', () => {
+    const layout = withBoard()
+    const target = layout.nodes.find((node) => node.isTarget)!
+    for (const officer of layout.nodes.filter((node) => node.isManagement)) {
+      expect(officer.x).toBeGreaterThan(target.x + target.width)
+    }
+  })
+
+  it('joins them with connectors, not with ownership arrows', () => {
+    const layout = withBoard()
+    expect(layout.connectors).toHaveLength(2)
+    // Every arrow on the chart is still a shareholding between two parties.
+    expect(layout.edges.every((edge) => edge.tone === 'ownership')).toBe(true)
+    expect(layout.edges.some((edge) => edge.entityKey.startsWith('mgmt'))).toBe(false)
+    expect(layout.edges.some((edge) => edge.ownerKey.startsWith('mgmt'))).toBe(false)
+  })
+
+  it('leaves the drawing untouched when nobody was entered', () => {
+    const layout = layoutOf(plain)
+    expect(layout.connectors).toEqual([])
+    expect(layout.nodes.some((node) => node.isManagement)).toBe(false)
+  })
+})

@@ -1,6 +1,6 @@
 import { atLeast, round2 } from './format'
 import { entityKindLabel } from './kinds'
-import { beneficialOwnerKey, buildGraph, holdingsOf, ownersOf } from './normalize'
+import { beneficialOwnerKey, buildGraph, holdingsOf, normaliseName, ownersOf, toKey } from './normalize'
 import { validate } from './validate'
 import {
   EngineError,
@@ -8,6 +8,8 @@ import {
   type ExcludedController,
   type ExcludedRoleHolder,
   type IntermediaryCompany,
+  type ManagementPerson,
+  type ManagementPersonInput,
   type NomineeArrangement,
   type OwnershipGraph,
   type OwnershipLinkInput,
@@ -37,6 +39,31 @@ export interface CalculateOptions {
   threshold: number
   /** Parties the agent has linked to be assessed together. */
   relatedParties?: RelatedPartyLinkInput[]
+  /** The Meydan FZ company's officers. Displayed only — never calculated with. */
+  management?: ManagementPersonInput[]
+}
+
+/**
+ * The management rows worth reporting: the ones that name somebody.
+ *
+ * A blank line is the builder offering the next person, not an omission, so it
+ * is dropped rather than reported. One person can hold two offices — a
+ * director who is also the manager — so an entry is a repeat only when the
+ * designation repeats with it.
+ */
+function collectManagement(entries: ManagementPersonInput[]): ManagementPerson[] {
+  const seen = new Set<string>()
+  const people: ManagementPerson[] = []
+  for (const entry of entries) {
+    const name = normaliseName(entry.name)
+    if (name === '') continue
+    const key = toKey(name)
+    const signature = `${key}>${entry.designation}`
+    if (seen.has(signature)) continue
+    seen.add(signature)
+    people.push({ key, name, designation: entry.designation })
+  }
+  return people
 }
 
 /** The target the UI should preselect: the first company that owns nothing. */
@@ -445,6 +472,16 @@ export function calculate(
         a.nomineeName.localeCompare(b.nomineeName) || a.entityName.localeCompare(b.entityName),
     )
 
+  /*
+   * The officers of the Meydan FZ company, carried through untouched.
+   *
+   * Nothing above reads this and nothing below it does either: it is not in
+   * the graph, so it cannot reach a path, a percentage or a 100% total. An
+   * office is a fact about the company that the report has to show, not a
+   * claim on its shares.
+   */
+  const management = collectManagement(options.management ?? [])
+
   return {
     target,
     graph,
@@ -458,6 +495,7 @@ export function calculate(
     excludedRoleHolders,
     relatedGroups,
     nominees,
+    management,
     entityCount: graph.nodes.length,
     pathCount: paths.length,
   }

@@ -14,19 +14,23 @@ import {
   type ValidationIssue,
 } from './engine'
 import {
+  blankManagementRow,
   blankRelatedRow,
   blankRow,
   exampleRows,
   hasNamedCompany,
+  isManagementRowDirty,
   isRelatedRowDirty,
   isRowDirty,
   nextCompanyToComplete,
   withOwnerKind,
   type LinkRowState,
+  type ManagementRowState,
   type RelatedRowState,
 } from './lib/rows'
 import { Blockers } from './components/Blockers'
 import { LinksBuilder } from './components/LinksBuilder'
+import { Management } from './components/Management'
 import { RelatedParties } from './components/RelatedParties'
 import { TargetSelect } from './components/TargetSelect'
 import { ThresholdSelect } from './components/ThresholdSelect'
@@ -37,6 +41,7 @@ import { Button, Card } from './components/ui'
 export default function App() {
   const [rows, setRows] = useState<LinkRowState[]>(() => [blankRow()])
   const [relatedRows, setRelatedRows] = useState<RelatedRowState[]>([])
+  const [managementRows, setManagementRows] = useState<ManagementRowState[]>([])
   const [threshold, setThreshold] = useState<number>(DEFAULT_THRESHOLD)
   const [chosenTargetKey, setChosenTargetKey] = useState<string | null>(null)
   const [result, setResult] = useState<CalculationResult | null>(null)
@@ -45,6 +50,11 @@ export default function App() {
   const graph = useMemo(() => buildGraph(rows), [rows])
   /** Only the links the agent has actually started; a blank one is ignored. */
   const relatedParties = useMemo(() => relatedRows.filter(isRelatedRowDirty), [relatedRows])
+  /** Officers with a name typed. Nothing here reaches the ownership maths. */
+  const management = useMemo(
+    () => managementRows.filter(isManagementRowDirty),
+    [managementRows],
+  )
   const totals = useMemo(() => companyTotals(graph), [graph])
 
   /*
@@ -91,7 +101,7 @@ export default function App() {
     setResult(null)
     setEngineError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, relatedRows, threshold, targetKey])
+  }, [rows, relatedRows, managementRows, threshold, targetKey])
 
   const anyRowDirty = rows.some(isRowDirty)
   const incompleteRowIds = new Set(rows.filter((row) => !isRowDirty(row)).map((row) => row.id))
@@ -239,7 +249,7 @@ export default function App() {
   const handleCalculate = () => {
     if (!targetKey) return
     try {
-      setResult(calculate(rows, { targetKey, threshold, relatedParties }))
+      setResult(calculate(rows, { targetKey, threshold, relatedParties, management }))
       setEngineError(null)
     } catch (error) {
       setResult(null)
@@ -250,6 +260,7 @@ export default function App() {
   const handleStartOver = () => {
     setRows([blankRow()])
     setRelatedRows([])
+    setManagementRows([])
     setThreshold(DEFAULT_THRESHOLD)
     setChosenTargetKey(null)
     setResult(null)
@@ -259,6 +270,7 @@ export default function App() {
   const handleLoadExample = () => {
     setRows(exampleRows())
     setRelatedRows([])
+    setManagementRows([])
     setThreshold(DEFAULT_THRESHOLD)
     setChosenTargetKey(null)
     setResult(null)
@@ -303,6 +315,25 @@ export default function App() {
             onChange={handleChangeRelatedRow}
             onRemove={(id) => setRelatedRows((current) => current.filter((row) => row.id !== id))}
             onAdd={() => setRelatedRows((current) => [...current, blankRelatedRow()])}
+          />
+        </Card>
+
+        <Card
+          title="Meydan company management"
+          description="Optional. Directors, managers and authorised persons — displayed, not counted."
+        >
+          <Management
+            rows={managementRows}
+            targetName={targetKey ? (graph.nodeByKey.get(targetKey)?.name ?? null) : null}
+            onChange={(updated) =>
+              setManagementRows((current) =>
+                current.map((row) => (row.id === updated.id ? updated : row)),
+              )
+            }
+            onRemove={(id) =>
+              setManagementRows((current) => current.filter((row) => row.id !== id))
+            }
+            onAdd={() => setManagementRows((current) => [...current, blankManagementRow()])}
           />
         </Card>
 

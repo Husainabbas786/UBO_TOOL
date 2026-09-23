@@ -81,6 +81,40 @@ export interface RelatedPartyLinkInput {
   label: string
 }
 
+/**
+ * What somebody does for the Meydan FZ company, as opposed to what they own.
+ *
+ * Management and ownership are separate questions. A director runs the company
+ * without necessarily holding a share of it, and holding shares does not make
+ * anyone a director — so these are captured apart from the ownership rows and
+ * never enter the graph.
+ */
+export type Designation = 'Director' | 'Manager' | 'Authorized Person'
+
+export const DESIGNATIONS: readonly Designation[] = ['Director', 'Manager', 'Authorized Person']
+
+/** One management row as the builder holds it. */
+export interface ManagementPersonInput {
+  id: string
+  name: string
+  designation: Designation
+}
+
+/**
+ * A director, manager or authorised person of the Meydan FZ company.
+ *
+ * Recorded and displayed, never calculated with: holding one of these offices
+ * is not in itself beneficial ownership, so nothing here touches the UBO list,
+ * the paths, the intermediaries or the 100% totals. Somebody who is both a
+ * director and a shareholder is a UBO because of the shares, and appears here
+ * as well because of the office.
+ */
+export interface ManagementPerson {
+  key: string
+  name: string
+  designation: Designation
+}
+
 /** A de-duplicated party in the ownership graph. */
 export interface PartyNode {
   /** Normalised identity: trimmed, whitespace-collapsed, lower-cased. */
@@ -377,6 +411,8 @@ export interface CalculationResult {
   relatedGroups: RelatedPartyGroup[]
   /** Every shareholding held through a nominee, for the summary. */
   nominees: NomineeArrangement[]
+  /** The Meydan FZ company's directors and managers — displayed, never counted. */
+  management: ManagementPerson[]
   /** Total parties considered, for the summary note. */
   entityCount: number
   /** Total paths considered, for the summary note. */

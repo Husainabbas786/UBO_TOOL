@@ -5,6 +5,7 @@ import { companyTotals, validate } from './validate'
 import { SAMPLE_LINKS } from './sample'
 import type {
   EntityKind,
+  ManagementPersonInput,
   OwnershipLinkInput,
   PartyType,
   RelatedPartyLinkInput,
@@ -80,11 +81,22 @@ function run(
   links: OwnershipLinkInput[],
   threshold = 25,
   relatedParties: RelatedPartyLinkInput[] = [],
+  management: ManagementPersonInput[] = [],
 ) {
   const graph = buildGraph(links)
   const targetKey = defaultTargetKey(graph)
   expect(targetKey).not.toBeNull()
-  return calculate(links, { targetKey: targetKey as string, threshold, relatedParties })
+  return calculate(links, {
+    targetKey: targetKey as string,
+    threshold,
+    relatedParties,
+    management,
+  })
+}
+
+/** One management row, the way the builder hands it over. */
+function officer(name: string, designation: ManagementPersonInput['designation']) {
+  return { id: id(), name, designation }
 }
 
 const uboNames = (links: OwnershipLinkInput[], threshold = 25, rp: RelatedPartyLinkInput[] = []) =>
@@ -774,5 +786,82 @@ describe('the Meydan FZ company dropdown', () => {
       ['Husain', 60],
       ['Masood', 40],
     ])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Feature 4 — the Meydan FZ company's own management
+// ---------------------------------------------------------------------------
+
+describe('management of the Meydan FZ company', () => {
+  const board: ManagementPersonInput[] = [
+    officer('Jane Doe', 'Director'),
+    officer('John Roe', 'Manager'),
+  ]
+
+  it('reports the officers entered, with their designations', () => {
+    expect(run(SAMPLE_LINKS, 25, [], board).management).toEqual([
+      { key: 'jane doe', name: 'Jane Doe', designation: 'Director' },
+      { key: 'john roe', name: 'John Roe', designation: 'Manager' },
+    ])
+  })
+
+  it('never puts an officer in the UBO list', () => {
+    const result = run(SAMPLE_LINKS, 25, [], board)
+    expect(result.ubos.map((u) => u.name).sort()).toEqual(['Dinesh', 'Husain', 'Masood'])
+    expect(result.owners.some((o) => o.name === 'Jane Doe')).toBe(false)
+    expect(result.paths.some((p) => p.chain.includes('Jane Doe'))).toBe(false)
+  })
+
+  it('changes nothing else about the result', () => {
+    const without = run(SAMPLE_LINKS)
+    const with_ = run(SAMPLE_LINKS, 25, [], board)
+    expect(with_.ubos).toEqual(without.ubos)
+    expect(with_.paths).toEqual(without.paths)
+    expect(with_.intermediaries).toEqual(without.intermediaries)
+    expect(with_.entityCount).toBe(without.entityCount)
+    expect(with_.pathCount).toBe(without.pathCount)
+  })
+
+  it('leaves every company’s 100% total alone', () => {
+    // An officer's name never becomes a party, so no company gains an owner.
+    const totalsWith = companyTotals(buildGraph(SAMPLE_LINKS))
+    expect(run(SAMPLE_LINKS, 25, [], board).graph.nodes.map((n) => n.name)).toEqual(
+      buildGraph(SAMPLE_LINKS).nodes.map((n) => n.name),
+    )
+    expect(totalsWith.every((company) => company.total === 100)).toBe(true)
+    expect(validate(SAMPLE_LINKS).ok).toBe(true)
+  })
+
+  it('records a shareholder who is also a director in both places, once each', () => {
+    const result = run(SAMPLE_LINKS, 25, [], [officer('Masood', 'Director')])
+    expect(result.management).toEqual([
+      { key: 'masood', name: 'Masood', designation: 'Director' },
+    ])
+    expect(result.ubos.filter((u) => u.name === 'Masood')).toHaveLength(1)
+    expect(result.ubos.find((u) => u.name === 'Masood')?.totalPercent).toBe(25)
+  })
+
+  it('keeps one person who holds two offices, and drops an exact repeat', () => {
+    const entries = [
+      officer('Jane Doe', 'Director'),
+      officer('Jane Doe', 'Manager'),
+      officer('jane doe', 'Director'),
+    ]
+    expect(run(SAMPLE_LINKS, 25, [], entries).management).toEqual([
+      { key: 'jane doe', name: 'Jane Doe', designation: 'Director' },
+      { key: 'jane doe', name: 'Jane Doe', designation: 'Manager' },
+    ])
+  })
+
+  it('ignores a row with nobody named', () => {
+    const entries = [officer('   ', 'Director'), officer('Jane Doe', 'Authorized Person')]
+    expect(run(SAMPLE_LINKS, 25, [], entries).management).toEqual([
+      { key: 'jane doe', name: 'Jane Doe', designation: 'Authorized Person' },
+    ])
+  })
+
+  it('reports none when none were entered', () => {
+    expect(run(SAMPLE_LINKS).management).toEqual([])
   })
 })

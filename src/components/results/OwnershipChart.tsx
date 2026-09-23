@@ -20,6 +20,7 @@ import { BuildingGlyph, DeedGlyph, PersonGlyph } from './icons'
  * variables, so an exported PNG or PDF renders exactly as the screen does.
  */
 function paletteFor(node: ChartNode) {
+  if (node.isManagement) return palette.management
   if (node.isTarget) return palette.target
   if (node.type === 'company') {
     return isNonCommercial(node.entityKind) ? palette.nonCommercial : palette.company
@@ -62,6 +63,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
   const hasRoles = layout.edges.some((edge) => edge.tone === 'role')
   const hasNominees = layout.edges.some((edge) => edge.tone === 'nominee')
   const hasControl = layout.edges.some((edge) => edge.tone === 'control')
+  const hasManagement = layout.nodes.some((node) => node.isManagement)
 
   return (
     <div>
@@ -96,6 +98,18 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
               </marker>
             ))}
           </defs>
+
+          {/* The management branch. Plain grey, no arrowhead and no label: it
+              says "attached to this company", not "owns a share of it". */}
+          {layout.connectors.map((connector) => (
+            <path
+              key={connector.id}
+              d={connector.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
+              fill="none"
+              stroke={palette.managementConnector}
+              strokeWidth={1.25}
+            />
+          ))}
 
           {layout.edges.map((edge) => {
             const colours = edgePalette(edge.tone)
@@ -149,7 +163,8 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                   rx={8}
                   fill={colours.fill}
                   stroke={colours.stroke}
-                  strokeWidth={node.isTarget || node.isUbo ? 2 : 1.5}
+                  strokeWidth={node.isTarget || node.isUbo ? 2 : node.isManagement ? 1 : 1.5}
+                  strokeDasharray={node.isManagement ? '4 3' : undefined}
                 />
                 <g transform={`translate(${node.x + 12}, ${node.y + node.height / 2 - 9})`}>
                   {node.type === 'individual' ? (
@@ -166,7 +181,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                     x={node.x + NODE_TEXT_X}
                     y={Math.round(firstBaseline + index * NAME_LINE_HEIGHT)}
                     fontSize={NAME_FONT_SIZE}
-                    fontWeight={600}
+                    fontWeight={node.isManagement ? 500 : 600}
                     fill={colours.text}
                   >
                     {line}
@@ -268,6 +283,12 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
               />
             </svg>
             Role, no shareholding
+          </span>
+        ) : null}
+        {hasManagement ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-dashed border-fieldBorder bg-white" />
+            Management — not a beneficial owner
           </span>
         ) : null}
         {hasNominees ? (

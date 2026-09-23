@@ -20,6 +20,11 @@ export interface ChartNode {
   entityKind: EntityKind
   isTarget: boolean
   isUbo: boolean
+  /**
+   * An officer of the Meydan FZ company rather than a party to the ownership.
+   * Drawn beside the target and joined to it by a connector, never by an arrow.
+   */
+  isManagement: boolean
   /** Short words along the top edge: a role, or "Control". */
   badges: string[]
   /** Second line in the box: the target's label, the kind, or the effective %. */
@@ -45,11 +50,25 @@ export interface ChartEdge {
   labelY: number
 }
 
+/**
+ * The line joining a management box to the Meydan FZ company.
+ *
+ * Deliberately not a ChartEdge: an edge is an ownership relationship, with a
+ * tone, an arrowhead and a percentage, and holding an office is none of those
+ * things. Keeping them apart in the types is what stops a director being drawn
+ * into the ownership flow by a later change.
+ */
+export interface ChartConnector {
+  id: string
+  points: Array<{ x: number; y: number }>
+}
+
 export interface ChartLayout {
   width: number
   height: number
   nodes: ChartNode[]
   edges: ChartEdge[]
+  connectors: ChartConnector[]
 }
 
 /** Dagre returns fractional positions; snapping to whole pixels keeps strokes
@@ -70,6 +89,11 @@ export const SUB_FONT_SIZE = 11
 export const NAME_FONT_SIZE = 12.5
 export const NAME_LINE_HEIGHT = LINE_HEIGHT
 export const NODE_TEXT_X = TEXT_X
+
+/** Management boxes: narrower than a party, and set out to the side. */
+const MGMT_MAX_WIDTH = 200
+const MGMT_GAP_X = 64
+const MGMT_GAP_Y = 10
 
 const LABEL_MIN_WIDTH = 58
 const LABEL_FONT_SIZE = 11
@@ -372,6 +396,24 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     })
   }
 
+  /*
+   * The officers of the Meydan FZ company, measured here and positioned once
+   * dagre has placed the target. They are never handed to dagre: putting them
+   * in the graph would let the layout treat them as parties and rank them
+   * among the shareholders, which is exactly what they are not.
+   */
+  const mgmtNameWidth = MGMT_MAX_WIDTH - TEXT_X - TEXT_PAD_RIGHT
+  const mgmtBoxes = result.management.map((person) => {
+    const nameLines = wrapName(person.name, mgmtNameWidth)
+    const sized = measureNode(nameLines, person.designation)
+    return {
+      person,
+      nameLines,
+      width: Math.min(MGMT_MAX_WIDTH, sized.width),
+      height: sized.height,
+    }
+  })
+
   for (const node of result.graph.nodes) {
     const box = measured.get(node.key)!
     graph.setNode(node.key, { width: box.width, height: box.height })
@@ -425,6 +467,57 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       extend(badge.x, badge.y, badge.x + badge.width, badge.y + BADGE_HEIGHT)
     }
   }
+
+  /*
+   * The management branch: a stub out of the target's right-hand side, a short
+   * spine, and one line to each box. The whole branch leaves from the side
+   * because everything that owns the company arrives at its top — so a reader
+   * can tell at a glance that these people are attached to the company without
+   * being part of what flows into it.
+   */
+  const targetBox = graph.node(result.target.key)
+  const branchX = targetBox.x + targetBox.width / 2
+  const spineX = branchX + MGMT_GAP_X / 2
+  const boxLeft = branchX + MGMT_GAP_X
+  const stackHeight =
+    mgmtBoxes.reduce((total, box) => total + box.height, 0) +
+    Math.max(0, mgmtBoxes.length - 1) * MGMT_GAP_Y
+
+  const placed: Array<{
+    person: (typeof mgmtBoxes)[number]['person']
+    nameLines: string[]
+    x: number
+    y: number
+    width: number
+    height: number
+  }> = []
+  let cursorY = targetBox.y - stackHeight / 2
+  for (const box of mgmtBoxes) {
+    placed.push({
+      person: box.person,
+      nameLines: box.nameLines,
+      x: boxLeft,
+      y: cursorY,
+      width: box.width,
+      height: box.height,
+    })
+    cursorY += box.height + MGMT_GAP_Y
+  }
+
+  const rawConnectors: ChartConnector[] = placed.map((box) => ({
+    id: `mgmt-line:${box.person.key}:${box.person.designation}`,
+    points: [
+      { x: branchX, y: targetBox.y },
+      { x: spineX, y: targetBox.y },
+      { x: spineX, y: box.y + box.height / 2 },
+      { x: box.x, y: box.y + box.height / 2 },
+    ],
+  }))
+
+  for (const box of placed) extend(box.x, box.y, box.x + box.width, box.y + box.height)
+  for (const connector of rawConnectors) {
+    for (const point of connector.points) extend(point.x, point.y, point.x, point.y)
+  }
   for (const edge of edgeList) {
     const routed = graph.edge(edge.ownerKey, edge.entityKey, edge.name)
     for (const point of routed.points) extend(point.x, point.y, point.x, point.y)
@@ -437,7 +530,7 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   const shiftX = Number.isFinite(minX) ? PADDING - minX : PADDING
   const shiftY = Number.isFinite(minY) ? PADDING - minY : PADDING
 
-  const nodes: ChartNode[] = result.graph.nodes.map((node) => {
+  const nodes: ChartNode[] = result.graph.nodes.map((node): ChartNode => {
     const positioned = graph.node(node.key)
     const box = measured.get(node.key)!
     return {
@@ -448,6 +541,7 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       entityKind: node.entityKind,
       isTarget: node.key === result.target.key,
       isUbo: uboKeys.has(node.key),
+      isManagement: false,
       badges: box.badges,
       subLabel: box.subLabel,
       x: snap(positioned.x - box.width / 2 + shiftX),
@@ -456,6 +550,33 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       height: box.height,
     }
   })
+
+  for (const box of placed) {
+    nodes.push({
+      key: `mgmt:${box.person.key}:${box.person.designation}`,
+      name: box.person.name,
+      nameLines: box.nameLines,
+      type: 'individual',
+      entityKind: 'company',
+      isTarget: false,
+      isUbo: false,
+      isManagement: true,
+      badges: [],
+      subLabel: box.person.designation,
+      x: snap(box.x + shiftX),
+      y: snap(box.y + shiftY),
+      width: box.width,
+      height: box.height,
+    })
+  }
+
+  const connectors: ChartConnector[] = rawConnectors.map((connector) => ({
+    id: connector.id,
+    points: connector.points.map((point) => ({
+      x: snap(point.x + shiftX),
+      y: snap(point.y + shiftY),
+    })),
+  }))
 
   const edges: ChartEdge[] = edgeList.map((edge) => {
     const routed = graph.edge(edge.ownerKey, edge.entityKey, edge.name)
@@ -481,5 +602,6 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     height: Number.isFinite(maxY) ? Math.ceil(maxY - minY + PADDING * 2) : PADDING * 2,
     nodes,
     edges,
+    connectors,
   }
 }

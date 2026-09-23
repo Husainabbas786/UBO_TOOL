@@ -3,6 +3,7 @@ import {
   buildGraph,
   isRoleValid,
   type EntityKind,
+  type ManagementPersonInput,
   type OwnershipLinkInput,
   type PartyType,
   type RelatedPartyLinkInput,
@@ -34,6 +35,9 @@ export interface LinkRowState extends OwnershipLinkInput {
 
 /** One related-party link in the aggregation section. */
 export interface RelatedRowState extends RelatedPartyLinkInput {}
+
+/** One officer of the Meydan FZ company in the management section. */
+export interface ManagementRowState extends ManagementPersonInput {}
 
 let counter = 0
 
@@ -67,6 +71,16 @@ export function blankRoleHolder(): RoleHolderInput {
 
 export function blankRelatedRow(): RelatedRowState {
   return { id: nextId('related'), memberNames: ['', ''], label: '' }
+}
+
+/**
+ * A fresh management row. The designation is preset rather than left empty:
+ * every office needs one, Director is far and away the commonest, and an
+ * unset select would only produce an error message telling the agent to pick
+ * the value that was going to be there anyway.
+ */
+export function blankManagementRow(): ManagementRowState {
+  return { id: nextId('mgmt'), name: '', designation: 'Director' }
 }
 
 /** Typing in the company field makes the name the user's own. */
@@ -148,6 +162,15 @@ export function isRowDirty(row: LinkRowState): boolean {
 /** A related-party link nobody has started — ignored rather than reported. */
 export function isRelatedRowDirty(row: RelatedRowState): boolean {
   return row.memberNames.some((name) => name.trim() !== '') || row.label.trim() !== ''
+}
+
+/**
+ * A management row nobody has started. The designation always has a value, so
+ * a name is the only thing that makes the row real — an untouched line is the
+ * builder offering the next person, and is dropped rather than reported.
+ */
+export function isManagementRowDirty(row: ManagementRowState): boolean {
+  return row.name.trim() !== ''
 }
 
 /**

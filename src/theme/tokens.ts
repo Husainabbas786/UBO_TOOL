@@ -156,6 +156,13 @@ export const chart = {
   roleEdge: { stroke: '#0B7A9E', label: '#0B7A9E', chip: '#FFFFFF' },
   /** Shares held on paper for somebody else: drawn in the caution colour. */
   nomineeEdge: { stroke: '#D26153', label: '#D26153', chip: '#FFFFFF' },
+  /*
+   * Management sits beside the ownership structure, not inside it, so it is
+   * drawn in plain greys: present and legible, but never competing with the
+   * shareholding chain or reading as a stake in it.
+   */
+  management: { fill: '#FFFFFF', stroke: '#C3CDD8', text: '#3D4E60', icon: '#8B9AAB' },
+  managementConnector: '#C3CDD8',
   controlBadge: { fill: '#8B65A4', text: '#FFFFFF' },
   roleBadge: { fill: '#0B7A9E', text: '#FFFFFF' },
   nomineeBadge: { fill: '#D26153', text: '#FFFFFF' },

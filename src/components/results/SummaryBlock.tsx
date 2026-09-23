@@ -231,6 +231,25 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
         </div>
       ) : null}
 
+      {/* An office is not a shareholding. These people are named on the file
+          because they run the company, and the heading has to say plainly that
+          that is not what makes anybody a beneficial owner. */}
+      {result.management.length > 0 ? (
+        <div className="rounded-card border border-line bg-field px-4 py-3">
+          <p className="text-body font-semibold text-navy">Management (not beneficial owners)</p>
+          <p className="mt-1.5 text-body text-navy">
+            {result.management
+              .map((person) => `${person.name} — ${person.designation}`)
+              .join('; ')}
+          </p>
+          <p className="mt-1.5 text-small text-muted">
+            Directors, managers and authorised persons of {result.target.name}. Holding one of
+            these offices is not in itself beneficial ownership, and none of them affect the
+            figures above.
+          </p>
+        </div>
+      ) : null}
+
       {/* The chain stops at a company nobody owns on paper: say so plainly. */}
       {result.unidentified.length > 0 ? (
         <div className="rounded-card border border-coral bg-gapTint px-4 py-3">
