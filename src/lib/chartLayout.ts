@@ -20,7 +20,7 @@ export interface ChartNode {
   entityKind: EntityKind
   isTarget: boolean
   isUbo: boolean
-  /** Short words along the top edge: "Control", a role, "Nominee". */
+  /** Short words along the top edge: a role, or "Control". */
   badges: string[]
   /** Second line in the box: the target's label, the kind, or the effective %. */
   subLabel: string | null
@@ -32,6 +32,9 @@ export interface ChartNode {
 
 export interface ChartEdge {
   id: string
+  /** The boxes this arrow joins, so an edge can be identified by its ends. */
+  ownerKey: string
+  entityKey: string
   points: Array<{ x: number; y: number }>
   label: string
   labelWidth: number
@@ -205,35 +208,50 @@ function measureNode(
   return { width, height: Math.max(NODE_MIN_HEIGHT, content + NODE_PAD_Y * 2) }
 }
 
-/** One drawn arrow. Several links between the same pair collapse into one. */
+/**
+ * One drawn arrow. Links between the same pair collapse into one *per tone*:
+ * settlor and beneficiary of one trust are one arrow, but shares held as a
+ * nominee and shares held outright in the same company are two.
+ */
 interface PairEdge {
   id: string
   ownerKey: string
   entityKey: string
   labels: string[]
   tone: EdgeTone
+  /** Dagre edge name, so two arrows can join the same pair of boxes. */
+  name: string
 }
 
 /**
- * The arrows to draw, one per pair of parties.
+ * The arrows to draw.
  *
- * Dagre keys an edge by its endpoints, so two links between the same pair —
- * settlor *and* beneficiary of the same trust — have to be merged here, or the
- * second would overwrite the first and one role would vanish from the chart.
+ * Links that say the same kind of thing about the same pair are merged —
+ * settlor *and* beneficiary of one trust is one arrow reading both, not two
+ * arrows on top of each other. Links that say different kinds of thing stay
+ * apart, which is what keeps a nominee-held parcel distinct from shares the
+ * same person owns outright in the same company.
  *
- * A nominee arrangement adds an arrow that is not in the graph at all: from the
- * nominator down to the nominee who holds the shares for them. Without it the
- * nominator would float unattached, and which of the two is the beneficial
- * owner would be left to guesswork.
+ * A nominee arrangement also adds an arrow that is not in the graph at all:
+ * from the nominator down to the nominee who holds the shares for them.
+ * Without it the nominator would float unattached, and which of the two is the
+ * beneficial owner would be left to guesswork.
  */
 function pairEdges(result: CalculationResult): PairEdge[] {
   const byPair = new Map<string, PairEdge>()
 
-  const add = (edge: PairEdge) => {
-    const pair = `${edge.ownerKey}>${edge.entityKey}`
-    const existing = byPair.get(pair)
+  const add = (edge: Omit<PairEdge, 'name'>) => {
+    /*
+     * Keyed by tone as well as by endpoints. Two links between the same pair
+     * are the same arrow only when they say the same kind of thing: a person
+     * who holds one parcel in a company as a nominee and another in their own
+     * right holds two different things, and merging them would put one
+     * percentage on the other's arrow.
+     */
+    const name = `${edge.ownerKey}>${edge.entityKey}>${edge.tone}`
+    const existing = byPair.get(name)
     if (existing) existing.labels.push(...edge.labels)
-    else byPair.set(pair, { ...edge, labels: [...edge.labels] })
+    else byPair.set(name, { ...edge, labels: [...edge.labels], name })
   }
 
   for (const link of result.graph.links) {
@@ -247,12 +265,29 @@ function pairEdges(result: CalculationResult): PairEdge[] {
       })
       continue
     }
+
+    /*
+     * Held as a nominee, or held outright?
+     *
+     * The distinction belongs to the shareholding, never to the person. The
+     * same person can be a nominee in one company and a real shareholder in
+     * another — or even in the same one — and marking the *person* as a
+     * nominee says the shares they genuinely own are somebody else's too.
+     * So the arrow carries it: this parcel is held for someone else.
+     */
+    const heldAsNominee = link.nominatorKey !== null
     add({
       id: link.id,
       ownerKey: link.ownerKey,
       entityKey: link.entityKey,
-      labels: [link.isControl ? 'Control' : `${formatPercent(link.percent)}%`],
-      tone: link.isControl ? 'control' : 'ownership',
+      labels: [
+        link.isControl
+          ? 'Control'
+          : heldAsNominee
+            ? `${formatPercent(link.percent)}% as nominee`
+            : `${formatPercent(link.percent)}%`,
+      ],
+      tone: link.isControl ? 'control' : heldAsNominee ? 'nominee' : 'ownership',
     })
 
     if (link.nominatorKey !== null) {
@@ -278,7 +313,8 @@ function pairEdges(result: CalculationResult): PairEdge[] {
  * result, and every node comes from the engine's de-duplicated graph.
  */
 export function layoutChart(result: CalculationResult): ChartLayout {
-  const graph = new dagre.graphlib.Graph()
+  // Multigraph: two arrows can join the same pair of boxes — see pairEdges.
+  const graph = new dagre.graphlib.Graph({ multigraph: true })
   graph.setGraph({ rankdir: 'TB', ranksep: 74, nodesep: 40, edgesep: 16, marginx: 8, marginy: 8 })
   graph.setDefaultEdgeLabel(() => ({}))
 
@@ -303,9 +339,14 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     const percent = ownerPercent.get(node.key)
 
     /*
-     * The second line of the box. A nominee holding nothing of their own is
-     * said outright — "not a UBO" — because the arrow into the company is
-     * theirs and, left unlabelled, would read as their shareholding.
+     * The second line of the box.
+     *
+     * Someone who holds every one of their parcels for other people has no
+     * stake of their own, and the arrows out of them would otherwise read as
+     * their shareholdings — so their box says so outright. Someone who also
+     * owns shares in their own right does not get that line: their effective
+     * percentage is real, and which parcel is held for whom is said on the
+     * arrows, one at a time.
      */
     let subLabel: string | null
     if (node.key === result.target.key) {
@@ -315,14 +356,11 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     } else {
       const bits: string[] = []
       if (isNonCommercial(node.entityKind)) bits.push(entityKindLabel(node.entityKind))
-      if (percent !== undefined) {
-        bits.push(node.isNominee ? `${formatPercent(percent)}% own shares` : `${formatPercent(percent)}% effective`)
-      }
+      if (percent !== undefined) bits.push(`${formatPercent(percent)}% effective`)
       subLabel = bits.length > 0 ? bits.join(' · ') : null
     }
 
     const badges = [...(rolesByOwner.get(node.key) ?? [])]
-    if (node.isNominee && percent !== undefined) badges.push('Nominee')
     if (node.isController) badges.push('Control')
 
     const nameLines = wrapName(node.name, nameWidth)
@@ -345,12 +383,13 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       LABEL_MIN_WIDTH,
       Math.ceil(textWidth(label, LABEL_FONT_SIZE) + LABEL_PAD_X * 2),
     )
-    labelWidths.set(`${edge.ownerKey}>${edge.entityKey}`, width)
-    graph.setEdge(edge.ownerKey, edge.entityKey, {
-      width,
-      height: LABEL_HEIGHT,
-      labelpos: 'c',
-    })
+    labelWidths.set(edge.name, width)
+    graph.setEdge(
+      edge.ownerKey,
+      edge.entityKey,
+      { width, height: LABEL_HEIGHT, labelpos: 'c' },
+      edge.name,
+    )
   }
 
   dagre.layout(graph)
@@ -387,11 +426,11 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     }
   }
   for (const edge of edgeList) {
-    const routed = graph.edge(edge.ownerKey, edge.entityKey)
+    const routed = graph.edge(edge.ownerKey, edge.entityKey, edge.name)
     for (const point of routed.points) extend(point.x, point.y, point.x, point.y)
     const labelX = routed.x ?? 0
     const labelY = routed.y ?? 0
-    const width = labelWidths.get(`${edge.ownerKey}>${edge.entityKey}`) ?? LABEL_MIN_WIDTH
+    const width = labelWidths.get(edge.name) ?? LABEL_MIN_WIDTH
     extend(labelX - width / 2, labelY - LABEL_HEIGHT / 2, labelX + width / 2, labelY + LABEL_HEIGHT / 2)
   }
 
@@ -419,16 +458,17 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   })
 
   const edges: ChartEdge[] = edgeList.map((edge) => {
-    const routed = graph.edge(edge.ownerKey, edge.entityKey)
-    const pair = `${edge.ownerKey}>${edge.entityKey}`
+    const routed = graph.edge(edge.ownerKey, edge.entityKey, edge.name)
     return {
       id: edge.id,
+      ownerKey: edge.ownerKey,
+      entityKey: edge.entityKey,
       points: routed.points.map((point) => ({
         x: snap(point.x + shiftX),
         y: snap(point.y + shiftY),
       })),
       label: edge.labels.join(', '),
-      labelWidth: labelWidths.get(pair) ?? LABEL_MIN_WIDTH,
+      labelWidth: labelWidths.get(edge.name) ?? LABEL_MIN_WIDTH,
       tone: edge.tone,
       dashed: edge.tone !== 'ownership',
       labelX: snap((routed.x ?? 0) + shiftX),

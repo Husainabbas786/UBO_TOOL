@@ -38,7 +38,6 @@ function edgePalette(tone: ChartEdge['tone']) {
 /** Each kind of badge carries its own colour, so the chart reads at a glance. */
 function badgePalette(text: string) {
   if (text === 'Control') return palette.controlBadge
-  if (text === 'Nominee') return palette.nomineeBadge
   return palette.roleBadge
 }
 
@@ -281,7 +280,7 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                 strokeDasharray="5 4"
               />
             </svg>
-            Nominator → nominee (the nominator is the UBO)
+            Held as nominee (the nominator is the UBO)
           </span>
         ) : null}
       </div>
