@@ -176,6 +176,13 @@ export function LinkRow({
 
   const kindWord = entityKindLabel(ownerKind).toLowerCase()
 
+  /**
+   * Switching a role-holder to a company drops the UBO tick with it: a company
+   * is never a beneficial owner, and its ownership is entered below instead.
+   */
+  const setHolderType = (holder: RoleHolderInput, type: PartyType) =>
+    updateHolder({ ...holder, type, isUbo: type === 'company' ? false : holder.isUbo })
+
   const updateHolder = (holder: RoleHolderInput) =>
     onChange({
       ...row,
@@ -327,15 +334,25 @@ export function LinkRow({
               return (
                 <div key={holder.id}>
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                    <div className="min-w-[10rem] flex-1">
+                    <div className="min-w-[9rem] flex-1">
                       <TextInput
                         aria-label={`Person ${holderIndex + 1} name, row ${index + 1}`}
-                        placeholder="Full name"
+                        placeholder={holder.type === 'company' ? 'Company name' : 'Full name'}
                         value={holder.name}
                         invalid={
                           holderHas('role-holder-name-required') || holderHas('self-ownership')
                         }
                         onChange={(e) => updateHolder({ ...holder, name: e.target.value })}
+                      />
+                    </div>
+                    {/* A role can be held by a company — a corporate trustee is
+                        an ordinary arrangement — and that changes what the tool
+                        does with it entirely, so it is asked on the same line. */}
+                    <div className="shrink-0">
+                      <TypeToggle
+                        value={holder.type ?? 'individual'}
+                        onChange={(t) => setHolderType(holder, t)}
+                        label={`Person ${holderIndex + 1} type, row ${index + 1}`}
                       />
                     </div>
                     <div className="w-[11rem] shrink-0">
@@ -362,6 +379,27 @@ export function LinkRow({
                         ))}
                       </select>
                     </div>
+                    {/* Holding a role is not being a beneficial owner: the
+                        constitutional document decides which role-holders are,
+                        and this is where the agent records that reading. A
+                        company never carries the tick — it routes through its
+                        own ownership instead. */}
+                    {(holder.type ?? 'individual') === 'individual' ? (
+                      <FlagBox
+                        checked={holder.isUbo ?? false}
+                        onChange={(checked) => updateHolder({ ...holder, isUbo: checked })}
+                        title="UBO"
+                        hint="per the constitutional document"
+                        width="w-[13rem]"
+                      />
+                    ) : (
+                      <span className="w-[13rem] shrink-0 text-[11px] leading-tight text-navy">
+                        A company is never a UBO. Enter who owns{' '}
+                        {holder.name.trim() === '' ? 'it' : holder.name} as ownership rows below —
+                        the people behind it are found from there.
+                      </span>
+                    )}
+
                     <Button
                       variant="danger"
                       aria-label={`Remove person ${holderIndex + 1}, row ${index + 1}`}
@@ -395,8 +433,9 @@ export function LinkRow({
               Add person
             </Button>
             <span className="text-[11px] leading-tight text-navy">
-              No percentages: a {kindWord} has no shares, so these role-holders are its beneficial
-              owners.
+              No percentages: a {kindWord} has no shares. Tick UBO for the role-holders the
+              constitutional document identifies as beneficial owners — the others stay on the
+              record without being counted.
             </span>
           </div>
         </div>

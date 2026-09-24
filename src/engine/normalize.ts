@@ -84,7 +84,7 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
   const graphLinks: GraphLink[] = []
   const kinds = resolveOwnerKinds(links)
   /** Role links already emitted, keyed person|structure|role — see below. */
-  const seenRoles = new Set<string>()
+  const seenRoles = new Map<string, GraphLink>()
 
   const upsert = (rawName: string, type: PartyType, isController: boolean): PartyNode => {
     const key = toKey(rawName)
@@ -149,6 +149,7 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
       declaredController: claimsControl && link.ownerType === 'individual',
       isRole: false,
       role: null,
+      roleMarkedUbo: false,
       nominatorKey,
     })
 
@@ -166,11 +167,21 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
     if (ownerKind === 'company') continue
     for (const holder of namedRoleHolders(link)) {
       const role = isRoleValid(ownerKind, holder.role) ? holder.role : null
+      const holderType = holder.type ?? 'individual'
+      /*
+       * The tick is a decision about the person, so it survives the merge: if
+       * any row marks them a beneficial owner they are one, rather than
+       * whichever row happened to be read first deciding it.
+       */
+      const markedUbo = holderType === 'individual' && (holder.isUbo ?? false)
       const signature = `${toKey(holder.name)}>${owner.key}>${role ?? ''}`
-      if (seenRoles.has(signature)) continue
-      seenRoles.add(signature)
-      const person = upsert(holder.name, holder.type ?? 'individual', false)
-      graphLinks.push({
+      const existing = seenRoles.get(signature)
+      if (existing) {
+        if (markedUbo) existing.roleMarkedUbo = true
+        continue
+      }
+      const person = upsert(holder.name, holderType, false)
+      const roleLink: GraphLink = {
         id: `${link.id}:${holder.id}`,
         ownerKey: person.key,
         entityKey: owner.key,
@@ -179,8 +190,11 @@ export function buildGraph(links: OwnershipLinkInput[]): OwnershipGraph {
         declaredController: false,
         isRole: true,
         role,
+        roleMarkedUbo: markedUbo,
         nominatorKey: null,
-      })
+      }
+      seenRoles.set(signature, roleLink)
+      graphLinks.push(roleLink)
     }
   }
 

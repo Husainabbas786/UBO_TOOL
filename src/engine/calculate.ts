@@ -10,6 +10,8 @@ import {
   type IntermediaryCompany,
   type ManagementPerson,
   type ManagementPersonInput,
+  type RecordedRoleHolder,
+  type ScreeningParty,
   type NomineeArrangement,
   type OwnershipGraph,
   type OwnershipLinkInput,
@@ -133,9 +135,10 @@ function enumeratePaths(graph: OwnershipGraph, targetKey: string): RawPath[] {
 }
 
 /**
- * Effective fraction of the target held by every party, by walking downwards and
+ * Effective fraction of `rootKey` held by every party, by walking downwards and
  * memoising. Used for the intermediary list, where the parties in the middle of
- * a chain each need their own share of the target.
+ * a chain each need their own share of the target — and again, with a different
+ * root, to look through a company that holds a role in a trust.
  */
 function sharesOfTarget(graph: OwnershipGraph, targetKey: string): Map<string, number> {
   const memo = new Map<string, number>()
@@ -278,28 +281,73 @@ export function calculate(
     controlsFor(key).filter(reachesTarget)
 
   /*
-   * Roles in a trust, foundation or NPO, gated exactly like control.
+   * Roles in a trust, foundation or NPO.
    *
-   * A settlor of a trust that holds 80% of the Meydan FZ company is a
-   * beneficial owner of it; a settlor of a trust holding 2% is not. Same test,
-   * same effective %, so the two manual routes to UBO status behave alike and
-   * there is only one rule for a reviewer to learn.
+   * Two gates, and a role has to pass both.
+   *
+   * The first is the agent's: holding a role is not being a beneficial owner.
+   * Not every council member of a foundation is one, and the constitutional
+   * document is what decides — so the tick is read here and nothing is
+   * inferred from the role itself. A role-holder who was not ticked is still
+   * on the file, reported separately, and never counted.
+   *
+   * The second is the threshold, exactly as it gates control: a settlor of a
+   * trust holding 80% of the Meydan FZ company is a beneficial owner of it; a
+   * settlor of a trust holding 2% is not. Same test, same effective %, so the
+   * two manual routes to UBO status behave alike.
    */
   const roleClaimsFor = new Map<string, RoleClaim[]>()
+  const addClaim = (key: string, claim: RoleClaim) => {
+    const list = roleClaimsFor.get(key) ?? []
+    list.push(claim)
+    roleClaimsFor.set(key, list)
+  }
+
   for (const link of graph.links) {
     if (!link.isRole || link.role === null) continue
     const entity = graph.nodeByKey.get(link.entityKey)
-    if (!entity) continue
-    const list = roleClaimsFor.get(link.ownerKey) ?? []
-    list.push({
+    const holder = graph.nodeByKey.get(link.ownerKey)
+    if (!entity || !holder) continue
+
+    const base = {
       entityKey: link.entityKey,
       entityName: entity.name,
       entityKind: entity.entityKind,
       role: link.role,
       effectivePercent: shareOf(link.entityKey),
-    })
-    roleClaimsFor.set(link.ownerKey, list)
+    }
+
+    if (holder.type === 'individual') {
+      if (link.roleMarkedUbo) addClaim(holder.key, base)
+      continue
+    }
+
+    /*
+     * A company holding the role: look through it.
+     *
+     * A corporate trustee is never itself a beneficial owner — a beneficial
+     * owner is a natural person — so the question becomes who is behind the
+     * company. Its own shareholdings are entered as ordinary rows, and the
+     * same multiply-down arithmetic used everywhere else answers it, which
+     * makes this recursive for free: a company owned by a company owned by a
+     * person keeps resolving until it reaches the person.
+     *
+     * The threshold is applied to each person's stake *in the company holding
+     * the role*, because the role carries no percentage of its own for them to
+     * inherit. The trust still has to clear the gate separately, below.
+     */
+    const sharesOfHolder = sharesOfTarget(graph, holder.key)
+    for (const node of graph.nodes) {
+      if (node.type !== 'individual' || node.key === holder.key) continue
+      const percentOfHolder = round2((sharesOfHolder.get(node.key) ?? 0) * 100)
+      if (percentOfHolder <= 0 || !atLeast(percentOfHolder, threshold)) continue
+      addClaim(node.key, {
+        ...base,
+        via: { key: holder.key, name: holder.name, percentOfHolder },
+      })
+    }
   }
+
   const qualifyingRoles = (key: string): RoleClaim[] =>
     (roleClaimsFor.get(key) ?? []).filter((claim) => reachesTarget(claim.entityKey))
 
@@ -397,6 +445,35 @@ export function calculate(
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  /*
+   * Everyone entered in a "People behind…" panel whom the agent did not mark.
+   *
+   * Leaving them off the report entirely would lose the difference between a
+   * council member who was considered and excluded and one who was never
+   * looked at, which is exactly the judgement a reviewer needs to see.
+   */
+  const recordedByKey = new Map<string, RecordedRoleHolder>()
+  for (const link of graph.links) {
+    if (!link.isRole || link.role === null || link.roleMarkedUbo) continue
+    const holder = graph.nodeByKey.get(link.ownerKey)
+    const entity = graph.nodeByKey.get(link.entityKey)
+    if (!holder || !entity || holder.type !== 'individual') continue
+    const entry = recordedByKey.get(holder.key) ?? {
+      key: holder.key,
+      name: holder.name,
+      entities: [],
+    }
+    entry.entities.push({
+      name: entity.name,
+      kindLabel: entityKindLabel(entity.entityKind),
+      role: link.role,
+    })
+    recordedByKey.set(holder.key, entry)
+  }
+  const recordedRoleHolders = [...recordedByKey.values()].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+
   /** The same explanation, for a role-holder whose trust sits below the threshold. */
   const excludedRoleHolders: ExcludedRoleHolder[] = graph.nodes
     .filter(
@@ -449,6 +526,29 @@ export function calculate(
     .sort((a, b) => b.effectivePercent - a.effectivePercent || a.name.localeCompare(b.name))
 
   /*
+   * The same gap, reached the other way: a corporate trustee with nobody
+   * entered behind it.
+   *
+   * It holds no shares, so its effective % is zero and the test above cannot
+   * see it — yet the chain stops there just as surely, and whoever is really
+   * behind the trust is unknown. Only reported when the trust itself clears
+   * the gate, because below it the company would not have mattered anyway.
+   */
+  for (const link of graph.links) {
+    if (!link.isRole) continue
+    const holder = graph.nodeByKey.get(link.ownerKey)
+    if (!holder || holder.type !== 'company') continue
+    if (ownersOf(graph, holder.key).length > 0) continue
+    if (!reachesTarget(link.entityKey)) continue
+    if (unidentified.some((gap) => gap.key === holder.key)) continue
+    unidentified.push({
+      key: holder.key,
+      name: holder.name,
+      effectivePercent: shareOf(holder.key),
+    })
+  }
+
+  /*
    * The nominee arrangements, as arrangements.
    *
    * Every ownership figure above already treats the nominator as the holder,
@@ -473,6 +573,30 @@ export function calculate(
     )
 
   /*
+   * Everybody, for the ERP.
+   *
+   * Screening scope and beneficial ownership are separate questions, and this
+   * list answers only the first. A 1% shareholder is not a UBO and still has
+   * to be screened; so does a nominee who owns nothing on their own account,
+   * and a council member who was recorded and not marked. No threshold is
+   * applied, and nothing here changes who was identified above.
+   */
+  const screening: ScreeningParty[] = graph.nodes
+    .filter((node) => node.key !== target.key)
+    .map((node) => ({
+      key: node.key,
+      name: node.name,
+      type: node.type,
+      effectivePercent: shareOf(node.key),
+    }))
+    .sort(
+      (a, b) =>
+        b.effectivePercent - a.effectivePercent ||
+        a.type.localeCompare(b.type) ||
+        a.name.localeCompare(b.name),
+    )
+
+  /*
    * The officers of the Meydan FZ company, carried through untouched.
    *
    * Nothing above reads this and nothing below it does either: it is not in
@@ -490,9 +614,11 @@ export function calculate(
     owners,
     ubos,
     intermediaries,
+    screening,
     unidentified,
     excludedControllers,
     excludedRoleHolders,
+    recordedRoleHolders,
     relatedGroups,
     nominees,
     management,

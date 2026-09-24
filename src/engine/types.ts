@@ -14,11 +14,23 @@ export interface RoleHolderInput {
   id: string
   name: string
   /**
-   * Almost always a natural person. A corporate trustee is possible, and is
-   * recorded so the chart shows it, but a company is never labelled a UBO.
+   * A natural person, or a company acting in the role — a corporate trustee is
+   * an ordinary arrangement. A company is never a beneficial owner itself: its
+   * own ownership is entered as normal rows and the engine drills through it.
    */
   type?: PartyType
   role: RoleName | null
+  /**
+   * The compliance agent has read the constitutional document and decided this
+   * person is a beneficial owner.
+   *
+   * Holding a role is not the same as being a beneficial owner — not every
+   * council member of a foundation is one, and the deed is what says which are.
+   * The tool must not make that call, so it is recorded rather than inferred,
+   * and defaults to off. Only meaningful for an individual: a company routes
+   * through its own ownership instead.
+   */
+  isUbo?: boolean
 }
 
 /**
@@ -151,6 +163,11 @@ export interface GraphLink {
   isRole: boolean
   role: RoleName | null
   /**
+   * On a role link: the agent marked this role-holder a beneficial owner. A
+   * role alone never qualifies anybody — see `RoleHolderInput.isUbo`.
+   */
+  roleMarkedUbo: boolean
+  /**
    * Set when the owner holds this parcel as a nominee: the shares are legally
    * theirs and still count towards the entity's 100%, but every ownership
    * calculation treats the nominator as the holder.
@@ -243,6 +260,49 @@ export interface RoleClaim {
   entityKind: EntityKind
   role: RoleName
   /** The entity's own effective % of the target — what the gate was applied to. */
+  effectivePercent: number
+  /**
+   * Set when the role is held by a company rather than by this person.
+   *
+   * A corporate trustee cannot be a beneficial owner, so the tool looks through
+   * it to whoever owns it: this names the company and how much of it this
+   * person holds. Absent when the person holds the role in their own name.
+   */
+  via?: {
+    key: string
+    name: string
+    /** This person's effective % of the company holding the role. */
+    percentOfHolder: number
+  }
+}
+
+/**
+ * A role-holder recorded on the file whom the agent did not mark as a
+ * beneficial owner.
+ *
+ * The record has to be complete — a council member who was considered and
+ * excluded is a different thing from one who was never entered — so they are
+ * reported, plainly separated from anybody who qualifies.
+ */
+export interface RecordedRoleHolder {
+  key: string
+  name: string
+  entities: Array<{ name: string; kindLabel: string; role: RoleName }>
+}
+
+/**
+ * A party to be screened in the ERP for sanctions, PEP and adverse media.
+ *
+ * Screening scope and beneficial ownership are separate questions: a 1%
+ * shareholder is not a UBO but still has to be screened, and so does a nominee
+ * who owns nothing. Every party in the structure appears here, whatever they
+ * hold.
+ */
+export interface ScreeningParty {
+  key: string
+  name: string
+  type: PartyType
+  /** Effective % of the target; 0 for a party with no stake of their own. */
   effectivePercent: number
 }
 
@@ -401,12 +461,16 @@ export interface CalculationResult {
   ubos: UboSummaryEntry[]
   /** Companies at or above the threshold that sit between owners and target. */
   intermediaries: IntermediaryCompany[]
+  /** Every party in the structure, for ERP screening — no threshold applied. */
+  screening: ScreeningParty[]
   /** Companies at or above the threshold whose own owners are missing. */
   unidentified: UnidentifiedOwnerGap[]
   /** Flagged controllers whose control does not reach the target, and why. */
   excludedControllers: ExcludedController[]
   /** Role-holders whose non-commercial entity sits below the threshold. */
   excludedRoleHolders: ExcludedRoleHolder[]
+  /** Role-holders the agent recorded but did not mark as beneficial owners. */
+  recordedRoleHolders: RecordedRoleHolder[]
   /** Every related-party group, qualifying or not, highest total first. */
   relatedGroups: RelatedPartyGroup[]
   /** Every shareholding held through a nominee, for the summary. */

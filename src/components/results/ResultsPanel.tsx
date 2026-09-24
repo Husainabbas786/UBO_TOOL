@@ -59,8 +59,8 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
       </Card>
 
       <Card
-        title="Intermediary companies (for screening)"
-        description="Screen these in the ERP for sanctions, PEP and adverse media."
+        title="Parties for screening"
+        description="Every party in the structure, whatever they hold. Screen these in the ERP for sanctions, PEP and adverse media."
         sectionRef={intermediariesRef}
         actions={
           <BlockActions

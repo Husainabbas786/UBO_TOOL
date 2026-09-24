@@ -4,6 +4,7 @@ import {
   type ExcludedController,
   type ExcludedRoleHolder,
   type NomineeArrangement,
+  type RecordedRoleHolder,
   type RelatedPartyGroup,
   type UboSummaryEntry,
 } from '../../engine'
@@ -31,17 +32,23 @@ function describeBasis(ubo: UboSummaryEntry, result: CalculationResult): string 
   }
 
   if (ubo.roles.length > 0) {
-    clauses.push(
-      `is ${listOf(
-        ubo.roles.map((claim) =>
-          claim.entityKey === result.target.key
-            ? `${claim.role} of ${claim.entityName}`
-            : `${claim.role} of ${claim.entityName}, which holds ${formatPercent(
-                claim.effectivePercent,
-              )}% of ${targetName}`,
-        ),
-      )}`,
-    )
+    /*
+     * A role held through a company reads the long way round on purpose:
+     * naming the company, this person's stake in it, and the structure's stake
+     * in the Meydan FZ company. A reviewer has to be able to retrace the whole
+     * route, and "Trustee of XYZ Trust" alone would hide the company entirely.
+     */
+    const describe = (claim: (typeof ubo.roles)[number]): string => {
+      const ofTarget =
+        claim.entityKey === result.target.key
+          ? ''
+          : `, which holds ${formatPercent(claim.effectivePercent)}% of ${targetName}`
+      if (claim.via) {
+        return `owner of ${formatPercent(claim.via.percentOfHolder)}% of ${claim.via.name}, ${claim.role} of ${claim.entityName}${ofTarget}`
+      }
+      return `${claim.role} of ${claim.entityName}${ofTarget}`
+    }
+    clauses.push(`is ${listOf(ubo.roles.map(describe))}`)
   }
 
   if (ubo.controls.length > 0) {
@@ -110,6 +117,19 @@ function describeNominee(entry: NomineeArrangement): string {
   return ` holds shares in ${entry.entityName} as nominee for ${entry.nominatorName} (${formatPercent(
     entry.percent,
   )}%; the nominator is assessed as the beneficial owner).`
+}
+
+/**
+ * A role-holder who was entered and deliberately not marked.
+ *
+ * The record has to show the judgement, not just its outcome: a council member
+ * who was read and excluded is a different fact from one nobody entered.
+ */
+function describeRecorded(entry: RecordedRoleHolder): string {
+  const parts = entry.entities.map(
+    (entity) => `${entity.role} of ${entity.name} (${entity.kindLabel.toLowerCase()})`,
+  )
+  return ` is ${listOf(parts)}, recorded but not marked as a beneficial owner.`
 }
 
 /**
@@ -228,6 +248,29 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {/* Holding a role is not being a beneficial owner. These people were
+          entered, read against the constitutional document and left unmarked —
+          which is a judgement the file has to show, not an omission. */}
+      {result.recordedRoleHolders.length > 0 ? (
+        <div className="rounded-card border border-line bg-field px-4 py-3">
+          <p className="text-body font-semibold text-navy">
+            Role-holders recorded (not beneficial owners)
+          </p>
+          <ul className="mt-1.5 space-y-1 text-body text-navy">
+            {result.recordedRoleHolders.map((entry) => (
+              <li key={`recorded-${entry.key}`}>
+                <span className="font-semibold">{entry.name}</span>
+                {describeRecorded(entry)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-small text-muted">
+            A role does not by itself make anybody a beneficial owner. These role-holders were not
+            marked as such, so they are reported and not counted.
+          </p>
         </div>
       ) : null}
 

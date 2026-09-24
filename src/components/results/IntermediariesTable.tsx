@@ -32,20 +32,26 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * Every party in the structure, for ERP screening.
+ *
+ * Screening scope is a wider question than beneficial ownership: sanctions and
+ * adverse-media checks run against everyone named, whatever they hold, so no
+ * threshold is applied here and individuals are listed alongside companies.
+ */
 export function IntermediariesTable({ result }: { result: CalculationResult }) {
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle')
 
-  if (result.intermediaries.length === 0) {
+  if (result.screening.length === 0) {
     return (
       <p className="text-body text-muted">
-        No intermediary companies at or above the {result.threshold}% threshold. Every owner holds the
-        target directly.
+        No other parties in this structure — the Meydan FZ company stands alone.
       </p>
     )
   }
 
   const handleCopy = async () => {
-    const names = result.intermediaries.map((company) => company.name).join('\n')
+    const names = result.screening.map((party) => party.name).join('\n')
     setCopied((await copyText(names)) ? 'done' : 'failed')
     window.setTimeout(() => setCopied('idle'), 2500)
   }
@@ -56,16 +62,20 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
         <table className="w-full min-w-[24rem] border-collapse text-body">
           <thead>
             <tr className="border-b border-line text-left text-h4 font-medium text-navy">
-              <th className="h-row pr-4 align-middle font-medium">Company</th>
+              <th className="h-row pr-4 align-middle font-medium">Party</th>
+              <th className="h-row pr-4 align-middle font-medium">Type</th>
               <th className="h-row text-right align-middle font-medium">Effective % of the Meydan FZ company</th>
             </tr>
           </thead>
           <tbody>
-            {result.intermediaries.map((company) => (
-              <tr key={company.key} className="border-b border-line last:border-0">
-                <td className="h-row pr-4 align-middle font-semibold text-ink">{company.name}</td>
+            {result.screening.map((party) => (
+              <tr key={party.key} className="border-b border-line last:border-0">
+                <td className="h-row pr-4 align-middle font-semibold text-ink">{party.name}</td>
+                <td className="h-row pr-4 align-middle text-muted">
+                  {party.type === 'company' ? 'Company' : 'Individual'}
+                </td>
                 <td className="h-row text-right align-middle font-semibold tabular-nums text-ink">
-                  {formatPercent(company.effectivePercent)}%
+                  {formatPercent(party.effectivePercent)}%
                 </td>
               </tr>
             ))}
@@ -79,8 +89,8 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
         </Button>
         {copied === 'done' ? (
           <span className="text-small text-darkGreen">
-            Copied {result.intermediaries.length} name
-            {result.intermediaries.length === 1 ? '' : 's'}, one per line.
+            Copied {result.screening.length} name
+            {result.screening.length === 1 ? '' : 's'}, one per line.
           </span>
         ) : null}
         {copied === 'failed' ? (

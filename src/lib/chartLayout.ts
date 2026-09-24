@@ -345,7 +345,12 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   const uboKeys = new Set(result.ubos.map((ubo) => ubo.key))
   const ownerPercent = new Map(result.owners.map((owner) => [owner.key, owner.totalPercent]))
 
-  /** Every role anybody was entered as, for the badge along the top of the box. */
+  /*
+ * Every role anybody was entered as, for the badge along the top of the box.
+ * The badge says what they hold, not whether they qualify — a role-holder who
+ * was not marked a beneficial owner still carries their role, and simply does
+ * not get the green UBO treatment that comes from `isUbo`.
+ */
   const rolesByOwner = new Map<string, string[]>()
   for (const link of result.graph.links) {
     if (!link.isRole || link.role === null) continue

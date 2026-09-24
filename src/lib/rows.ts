@@ -64,9 +64,16 @@ export function blankRow(entityName = ''): LinkRowState {
   }
 }
 
-/** A fresh, empty line in a structure's inline list of people. */
+/**
+ * A fresh, empty line in a structure's inline list of people.
+ *
+ * An individual, and not a beneficial owner. Both defaults are deliberate: a
+ * role-holder is usually a person, and whether they are a beneficial owner is
+ * a decision the agent takes from the constitutional document — so the tool
+ * starts from "no" and waits to be told, rather than assuming.
+ */
 export function blankRoleHolder(): RoleHolderInput {
-  return { id: nextId('person'), name: '', role: null }
+  return { id: nextId('person'), name: '', type: 'individual', role: null, isUbo: false }
 }
 
 export function blankRelatedRow(): RelatedRowState {
@@ -155,7 +162,9 @@ export function isRowDirty(row: LinkRowState): boolean {
     row.ownerName.trim() !== '' ||
     (!row.entityPrefilled && row.entityName.trim() !== '') ||
     row.percentText.trim() !== '' ||
-    row.roleHolders.some((holder) => holder.name.trim() !== '' || holder.role !== null)
+    row.roleHolders.some(
+      (holder) => holder.name.trim() !== '' || holder.role !== null || holder.isUbo === true,
+    )
   )
 }
 
