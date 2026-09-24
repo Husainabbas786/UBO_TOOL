@@ -6,7 +6,7 @@ import {
   type OwnershipLinkInput,
   type PartyType,
 } from '../engine'
-import { layoutChart, type ChartEdge } from './chartLayout'
+import { LABEL_HEIGHT, layoutChart, type ChartEdge } from './chartLayout'
 
 let seq = 0
 const id = () => `c-${(seq += 1)}`
@@ -187,5 +187,100 @@ describe('management on the chart', () => {
     const layout = layoutOf(plain)
     expect(layout.connectors).toEqual([])
     expect(layout.nodes.some((node) => node.isManagement)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The management lane keeps clear of the structure
+// ---------------------------------------------------------------------------
+
+describe('the management lane', () => {
+  const board = [
+    { id: 'm1', name: 'Jane Doe', designation: 'Director' as const },
+    { id: 'm2', name: 'John Roe', designation: 'Manager' as const },
+    { id: 'm3', name: 'Sara Noor', designation: 'Authorized Person' as const },
+  ]
+
+  const laidOut = (links: OwnershipLinkInput[]) => {
+    const graph = buildGraph(links)
+    const targetKey = defaultTargetKey(graph) as string
+    return layoutChart(calculate(links, { targetKey, threshold: 25, management: board }))
+  }
+
+  /** Do two rectangles share any area? */
+  const overlaps = (
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number },
+  ) =>
+    a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+
+  /** The structure Compliance reported the overlap on: wide, with a nominee. */
+  const wide = [
+    nominee('Mohammed Altaf', 100, 'Yangda Corporation', 'Huang Zhen'),
+    owns('Yangda Corporation', 'company', 40, 'ABCD Company'),
+    owns('Mohammed Altaf', 'individual', 21, 'ABCD Company'),
+    owns('Second Holdings', 'company', 39, 'ABCD Company'),
+    owns('Layla', 'individual', 60, 'Second Holdings'),
+    owns('Tariq', 'individual', 40, 'Second Holdings'),
+  ]
+
+  it('never lets a management box sit on a party', () => {
+    const layout = laidOut(wide)
+    const officers = layout.nodes.filter((node) => node.isManagement)
+    const parties = layout.nodes.filter((node) => !node.isManagement)
+    expect(officers).toHaveLength(3)
+    for (const officer of officers) {
+      for (const party of parties) expect(overlaps(officer, party)).toBe(false)
+    }
+  })
+
+  it('never lets a management box sit on an edge label', () => {
+    const layout = laidOut(wide)
+    for (const officer of layout.nodes.filter((node) => node.isManagement)) {
+      for (const edge of layout.edges) {
+        const chip = {
+          x: edge.labelX - edge.labelWidth / 2,
+          y: edge.labelY - LABEL_HEIGHT / 2,
+          width: edge.labelWidth,
+          height: LABEL_HEIGHT,
+        }
+        expect(overlaps(officer, chip)).toBe(false)
+      }
+    }
+  })
+
+  it('opens a lane clear to the right of the whole structure', () => {
+    const layout = laidOut(wide)
+    const parties = layout.nodes.filter((node) => !node.isManagement)
+    const structureRight = Math.max(...parties.map((node) => node.x + node.width))
+    for (const officer of layout.nodes.filter((node) => node.isManagement)) {
+      expect(officer.x).toBeGreaterThan(structureRight)
+    }
+  })
+
+  it('drops the connector below when a second company shares the bottom rank', () => {
+    // Two companies own nothing, so both sit beside each other on that rank; a
+    // stub straight out of the target's side would cross the other one.
+    const twoSinks = [
+      owns('Masood', 'individual', 100, 'ABC LTD'),
+      owns('Masood', 'individual', 100, 'Other Co'),
+    ]
+    const graph = buildGraph(twoSinks)
+    const layout = layoutChart(
+      calculate(twoSinks, { targetKey: 'abc ltd', threshold: 25, management: board }),
+    )
+    expect(graph.targetCandidates).toHaveLength(2)
+
+    const other = layout.nodes.find((node) => node.key === 'other co')!
+    for (const connector of layout.connectors) {
+      for (const point of connector.points) {
+        const insideOther =
+          point.x > other.x &&
+          point.x < other.x + other.width &&
+          point.y > other.y &&
+          point.y < other.y + other.height
+        expect(insideOther).toBe(false)
+      }
+    }
   })
 })

@@ -90,10 +90,15 @@ export const NAME_FONT_SIZE = 12.5
 export const NAME_LINE_HEIGHT = LINE_HEIGHT
 export const NODE_TEXT_X = TEXT_X
 
-/** Management boxes: narrower than a party, and set out to the side. */
+/** Management boxes: narrower than a party, and set out in a lane of their own. */
 const MGMT_MAX_WIDTH = 200
-const MGMT_GAP_X = 64
+/** Clearance between the lane and the furthest-right thing in the structure. */
+const MGMT_LANE_GAP = 72
+/** Length of the stub leaving the company before the lane's spine. */
+const MGMT_STUB = 36
 const MGMT_GAP_Y = 10
+/** Drop below the drawing when something sits beside the company on its rank. */
+const MGMT_DROP = 44
 
 const LABEL_MIN_WIDTH = 58
 const LABEL_FONT_SIZE = 11
@@ -474,16 +479,43 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   }
 
   /*
-   * The management branch: a stub out of the target's right-hand side, a short
-   * spine, and one line to each box. The whole branch leaves from the side
-   * because everything that owns the company arrives at its top — so a reader
-   * can tell at a glance that these people are attached to the company without
-   * being part of what flows into it.
+   * The management branch, placed once the structure has been measured.
+   *
+   * It goes in a lane of its own, clear to the right of the furthest-right
+   * thing in the drawing — not merely to the right of the company. Measuring
+   * against the company alone is what let a box or a connector sit on top of a
+   * shareholding edge or its percentage chip on a wide structure, which is the
+   * overlap Compliance reported.
+   *
+   * The stub normally leaves the company's right-hand side, because everything
+   * that owns the company arrives at its top and a reader can tell the two
+   * apart at a glance. When something else shares the company's rank and sits
+   * to its right — a second company nobody owns, say — that horizontal run
+   * would cross it, so the stub drops below the drawing and crosses there
+   * instead.
    */
   const targetBox = graph.node(result.target.key)
-  const branchX = targetBox.x + targetBox.width / 2
-  const spineX = branchX + MGMT_GAP_X / 2
-  const boxLeft = branchX + MGMT_GAP_X
+  const targetRight = targetBox.x + targetBox.width / 2
+  const bandTop = targetBox.y - targetBox.height / 2
+  const bandBottom = targetBox.y + targetBox.height / 2
+
+  /** Is anything else sitting beside the company, in its own horizontal band? */
+  const besideTarget = result.graph.nodes.some((node) => {
+    if (node.key === result.target.key) return false
+    const box = measured.get(node.key)!
+    const positioned = graph.node(node.key)
+    const left = positioned.x - box.width / 2
+    const top = positioned.y - box.height / 2
+    return left + box.width > targetRight && top < bandBottom && top + box.height > bandTop
+  })
+
+  const stubY = besideTarget ? maxY + MGMT_DROP : targetBox.y
+  const stubStart = besideTarget
+    ? { x: targetBox.x, y: bandBottom }
+    : { x: targetRight, y: targetBox.y }
+
+  const laneX = Math.max(targetRight + MGMT_STUB, maxX + MGMT_LANE_GAP)
+  const spineX = laneX - MGMT_STUB / 2
   const stackHeight =
     mgmtBoxes.reduce((total, box) => total + box.height, 0) +
     Math.max(0, mgmtBoxes.length - 1) * MGMT_GAP_Y
@@ -496,12 +528,12 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     width: number
     height: number
   }> = []
-  let cursorY = targetBox.y - stackHeight / 2
+  let cursorY = stubY - stackHeight / 2
   for (const box of mgmtBoxes) {
     placed.push({
       person: box.person,
       nameLines: box.nameLines,
-      x: boxLeft,
+      x: laneX,
       y: cursorY,
       width: box.width,
       height: box.height,
@@ -512,11 +544,15 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   const rawConnectors: ChartConnector[] = placed.map((box) => ({
     id: `mgmt-line:${box.person.key}:${box.person.designation}`,
     points: [
-      { x: branchX, y: targetBox.y },
-      { x: spineX, y: targetBox.y },
+      stubStart,
+      { x: stubStart.x, y: stubY },
+      { x: spineX, y: stubY },
       { x: spineX, y: box.y + box.height / 2 },
       { x: box.x, y: box.y + box.height / 2 },
-    ],
+    ].filter(
+      (point, index, all) =>
+        index === 0 || point.x !== all[index - 1]!.x || point.y !== all[index - 1]!.y,
+    ),
   }))
 
   for (const box of placed) extend(box.x, box.y, box.x + box.width, box.y + box.height)
