@@ -108,15 +108,23 @@ function describeRoleExclusion(entry: ExcludedRoleHolder, threshold: number): st
 }
 
 /**
- * One line per nominee arrangement: whose name is on the shares, in which
- * company, and who is actually behind them. The parenthetical is there because
- * the same person appears as a UBO further up the summary, and a reviewer
- * should not have to work out for themselves why.
+ * One line per nominee arrangement, led by the person who actually owns it.
+ *
+ * The order carries the meaning. Starting with the nominee — "Dinesh holds
+ * shares in ABC LTD" — reads as a shareholding of his own before the sentence
+ * gets to the word "nominee", which is the opposite of what the arrangement
+ * is: he holds nothing beneficially. So the nominator comes first as the
+ * owner, and the nominee is named only as the person whose name is on the
+ * register.
+ *
+ * "in the name of nominee X" rather than "in their name by nominee X": the
+ * shares stand in the nominee's name, and a pronoun that far from its referent
+ * would be read as the nominator's.
  */
-function describeNominee(entry: NomineeArrangement): string {
-  return ` holds shares in ${entry.entityName} as nominee for ${entry.nominatorName} (${formatPercent(
-    entry.percent,
-  )}%; the nominator is assessed as the beneficial owner).`
+export function describeNominee(entry: NomineeArrangement): string {
+  return ` is the beneficial owner of the ${formatPercent(entry.percent)}% shareholding in ${
+    entry.entityName
+  } held in the name of nominee ${entry.nomineeName}.`
 }
 
 /**
@@ -184,16 +192,16 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
         </ul>
       ) : null}
 
-      {/* Who holds the shares is not always who owns them. The nominator is
+      {/* Who owns the shares is not always whose name is on them. The owner is
           already listed as a UBO above; this records the arrangement that put
-          somebody else's name on the register. */}
+          somebody else's name on the register, and says it in that order. */}
       {result.nominees.length > 0 ? (
         <div className="rounded-card border border-steelBlue bg-infoTint px-4 py-3">
           <p className="text-body font-semibold text-navy">Nominee arrangements</p>
           <ul className="mt-1.5 space-y-1 text-body text-navy">
             {result.nominees.map((entry) => (
               <li key={`${entry.nomineeKey}>${entry.entityKey}>${entry.nominatorKey}`}>
-                <span className="font-semibold">{entry.nomineeName}</span>
+                <span className="font-semibold">{entry.nominatorName}</span>
                 {describeNominee(entry)}
               </li>
             ))}
