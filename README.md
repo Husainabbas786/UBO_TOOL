@@ -39,3 +39,15 @@ npm install
 1. Overwrite `data/country-risk.xlsx` with the new file from Compliance (sheet "Country Risk": Country | Score | Rating).
 2. Run `npm run import:risk` — it fails on an unknown rating or a country listed twice with different ratings, and warns on a score/rating mismatch.
 3. Commit the xlsx and `src/data/country-risk.json` together, and push.
+
+### How the top tier is shown
+
+The spreadsheet's **Override** tier is never shown by that name. As instructed by Compliance (email of 8 Oct 2026), it is displayed per party type — nationality for an individual, country of incorporation for a company, trust, foundation or NPO:
+
+| Country | Individual | Company / trust / foundation / NPO |
+| --- | --- | --- |
+| Iran | High | Blacklisted |
+| Myanmar | High | Blacklisted |
+| North Korea | Blacklisted | Blacklisted |
+
+Any other country that reaches that tier shows company → Blacklisted, individual → High, and `npm run import:risk` warns about it. The rules live in `src/data/override-rules.json` and can be edited without code. Blacklisted means the party cannot be onboarded: it is flagged on the row, in the Summary and on the chart, but never blocks Calculate.

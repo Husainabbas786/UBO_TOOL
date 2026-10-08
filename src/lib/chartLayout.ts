@@ -7,7 +7,7 @@ import {
   type EntityKind,
   type PartyType,
 } from '../engine'
-import type { RiskRating } from '../risk/countryRisk'
+import type { DisplayRisk } from '../risk/countryRisk'
 import { countryRiskOf, type CountryMap } from '../risk/jurisdiction'
 
 /** How an edge is drawn and coloured. */
@@ -36,7 +36,7 @@ export interface ChartNode {
    */
   country: string | null
   countryLines: string[]
-  risk: RiskRating | null
+  risk: DisplayRisk | null
   /** Second line in the box: the target's label, the kind, or the effective %. */
   subLabel: string | null
   x: number
@@ -106,7 +106,7 @@ export const RISK_CHIP_HEIGHT = 14
 const RISK_CHIP_PAD_X = 6
 export const RISK_CHIP_GAP = 6
 
-export function riskChipWidth(risk: RiskRating | null): number {
+export function riskChipWidth(risk: DisplayRisk | null): number {
   if (risk === null || risk === 'Low') return 0
   return Math.ceil(textWidth(risk, RISK_CHIP_FONT_SIZE) + RISK_CHIP_PAD_X * 2)
 }
@@ -235,7 +235,7 @@ interface MeasuredNode {
   nameLines: string[]
   country: string | null
   countryLines: string[]
-  risk: RiskRating | null
+  risk: DisplayRisk | null
   subLabel: string | null
   badges: string[]
   width: number
@@ -280,7 +280,7 @@ function measureNode(
 interface CountryText {
   country: string | null
   lines: string[]
-  risk: RiskRating | null
+  risk: DisplayRisk | null
   chipWidth: number
 }
 
@@ -289,10 +289,15 @@ const NO_COUNTRY: CountryText = { country: null, lines: [], risk: null, chipWidt
 /**
  * A party's country line, wrapped to the box. Every line leaves room for the
  * chip, so "North Korea - Democratic People's Republic of Korea (DPRK)" wraps
- * without the Override chip ever running out of the box.
+ * without the Blacklisted chip ever running out of the box.
  */
-function countryText(countries: CountryMap, key: string, maxWidth: number): CountryText {
-  const { country, risk } = countryRiskOf(countries, key)
+function countryText(
+  countries: CountryMap,
+  key: string,
+  partyType: PartyType,
+  maxWidth: number,
+): CountryText {
+  const { country, risk } = countryRiskOf(countries, key, partyType)
   if (country === null) return NO_COUNTRY
   const chipWidth = riskChipWidth(risk)
   const room = maxWidth - (chipWidth > 0 ? chipWidth + RISK_CHIP_GAP : 0)
@@ -463,7 +468,7 @@ export function layoutChart(
     if (node.isController) badges.push('Control')
 
     const nameLines = wrapName(node.name, nameWidth)
-    const place = countryText(countries, node.key, nameWidth)
+    const place = countryText(countries, node.key, node.type, nameWidth)
     measured.set(node.key, {
       nameLines,
       country: place.country,
@@ -484,7 +489,7 @@ export function layoutChart(
   const mgmtNameWidth = MGMT_MAX_WIDTH - TEXT_X - TEXT_PAD_RIGHT
   const mgmtBoxes = result.management.map((person) => {
     const nameLines = wrapName(person.name, mgmtNameWidth)
-    const place = countryText(countries, person.key, mgmtNameWidth)
+    const place = countryText(countries, person.key, 'individual', mgmtNameWidth)
     const sized = measureNode(nameLines, person.designation, place)
     return {
       person,

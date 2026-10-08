@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { isNonCommercial, type CalculationResult } from '../../engine'
-import { RISK_LIST_AS_OF, type RiskRating } from '../../risk/countryRisk'
+import { RISK_LIST_AS_OF, type DisplayRisk } from '../../risk/countryRisk'
 import type { CountryMap } from '../../risk/jurisdiction'
-import { chart as palette } from '../../theme/tokens'
+import { chart as palette, risk as riskTone } from '../../theme/tokens'
 import {
   badgeBoxes,
   BADGE_FONT_SIZE,
@@ -52,14 +52,21 @@ function badgePalette(text: string) {
 }
 
 /** The chip tiers, in the order the legend lists them. */
-const CHIP_TIERS: Array<Exclude<RiskRating, 'Low'>> = ['Medium', 'High', 'Override']
+const CHIP_TIERS: Array<Exclude<DisplayRisk, 'Low'>> = ['Medium', 'High', 'Blacklisted']
+
+/** What each chip means, in the legend. */
+const TIER_LEGEND: Record<Exclude<DisplayRisk, 'Low'>, string> = {
+  Medium: 'Medium country risk',
+  High: 'High country risk',
+  Blacklisted: 'Blacklisted — onboarding not permitted',
+}
 
 /**
  * A country risk chip, at the end of a node's country line. A pill inside the
  * box, never a border or a fill: the border already says UBO, company or
  * Meydan FZ company, and risk must not be read as any of those.
  */
-function RiskChipSvg({ risk, x, baseline }: { risk: RiskRating; x: number; baseline: number }) {
+function RiskChipSvg({ risk, x, baseline }: { risk: DisplayRisk; x: number; baseline: number }) {
   if (risk === 'Low') return null
   const colours = palette.riskChip[risk]
   const width = riskChipWidth(risk)
@@ -401,12 +408,21 @@ export function OwnershipChart({
             <svg width={riskChipWidth(tier) + 1} height={RISK_CHIP_HEIGHT + 2}>
               <RiskChipSvg risk={tier} x={0.5} baseline={RISK_CHIP_HEIGHT - 2.5} />
             </svg>
-            {tier} country risk
+            {TIER_LEGEND[tier]}
           </span>
         ))}
         <span className="w-full text-small" style={{ color: palette.country.text }}>
           Country risk list as of {RISK_LIST_AS_OF}
         </span>
+        {/* Literal hex, like the chart itself, so it survives PNG and PDF export. */}
+        {tiersDrawn.includes('Blacklisted') ? (
+          <span
+            className="w-full text-small font-semibold"
+            style={{ color: riskTone.riskBlacklisted }}
+          >
+            Contains blacklisted parties — onboarding not permitted.
+          </span>
+        ) : null}
       </div>
     </div>
   )

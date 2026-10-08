@@ -19,7 +19,9 @@ import {
   withOwnerType,
   withPercentText,
 } from '../lib/rows'
+import { blacklistWarning } from '../risk/countryRisk'
 import type { CountryMap } from '../risk/jurisdiction'
+import { BlacklistWarning } from './BlacklistWarning'
 import { CountryPicker } from './CountryPicker'
 import { Button, ErrorText, TextInput } from './ui'
 
@@ -177,9 +179,21 @@ export function LinkRow({
       onChange={(picked) => onChangeCountry(name, picked)}
       placeholder={type === 'individual' ? 'Nationality' : 'Country of incorporation'}
       ariaLabel={label}
+      partyType={type}
       disabled={toKey(name) === ''}
     />
   )
+  /** The crimson "cannot onboard" line for whoever is named in that field. */
+  const warning = (name: string, type: PartyType, className = '') => (
+    <BlacklistWarning
+      country={countries.get(toKey(name))}
+      partyType={type}
+      className={className}
+    />
+  )
+  const ownerWarning = warning(row.ownerName, row.ownerType)
+  const ownerBlacklisted =
+    blacklistWarning(countries.get(toKey(row.ownerName)), row.ownerType) !== null
 
   /*
    * Errors belonging to the row itself. A person's own errors sit under their
@@ -346,6 +360,7 @@ export function LinkRow({
             {row.entityName.trim() === '' ? 'the company' : row.entityName}&rsquo;s 100% total, but
             the nominator is assessed as the beneficial owner — the nominee never is.
           </p>
+          {warning(row.nominatorName, row.nominatorType, 'mt-1.5')}
         </div>
       ) : null}
 
@@ -456,6 +471,7 @@ export function LinkRow({
                   {holderIssues.map((issue) => (
                     <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
                   ))}
+                  {warning(holder.name, holder.type ?? 'individual', 'mt-1')}
                 </div>
               )
             })}
@@ -478,8 +494,9 @@ export function LinkRow({
         </div>
       ) : null}
 
-      {rowIssues.length > 0 || hint || row.ownerIsController ? (
+      {rowIssues.length > 0 || hint || row.ownerIsController || ownerBlacklisted ? (
         <div className="mt-2 space-y-1 pl-[1.875rem]">
+          {ownerWarning}
           {rowIssues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}

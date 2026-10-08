@@ -13,8 +13,14 @@
  * the app: an unknown rating, or one country listed twice with two different
  * ratings. The Rating column is what the app uses; Score is informational, and
  * a score that disagrees with its rating is reported but not fatal.
+ *
+ * The Override tier is accepted as-is. The app does not show it by that name:
+ * src/data/override-rules.json says what each Override country displays for a
+ * national and for a company. A country that reaches Override with no rule
+ * there is warned about, so Compliance can be asked; until then it shows the
+ * default (company Blacklisted, individual High).
  */
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import XLSX from 'xlsx'
@@ -22,6 +28,8 @@ import XLSX from 'xlsx'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = resolve(ROOT, 'data/country-risk.xlsx')
 const OUTPUT = resolve(ROOT, 'src/data/country-risk.json')
+/** How the Override tier is shown per party type — maintained by hand. */
+const OVERRIDE_RULES = resolve(ROOT, 'src/data/override-rules.json')
 const SHEET = 'Country Risk'
 
 const RATINGS = ['Low', 'Medium', 'High', 'Override']
@@ -120,6 +128,23 @@ const output = { asOf, sourceFile: relative(ROOT, SOURCE).replace(/\\/g, '/'), e
 
 mkdirSync(dirname(OUTPUT), { recursive: true })
 writeFileSync(OUTPUT, `${JSON.stringify(output, null, 2)}\n`)
+
+const rules = Object.keys(JSON.parse(readFileSync(OVERRIDE_RULES, 'utf8')).rules ?? {})
+const ruleKeys = new Set(rules.map((name) => clean(name).toLowerCase()))
+for (const entry of entries) {
+  if (entry.rating === 'Override' && !ruleKeys.has(entry.country.toLowerCase())) {
+    warnings += 1
+    console.warn(
+      `WARNING: ${entry.country} is Override with no rule in src/data/override-rules.json; it will show company -> Blacklisted, individual -> High. Ask Compliance.`,
+    )
+  }
+}
+for (const name of rules) {
+  if (!byName.has(clean(name).toLowerCase())) {
+    warnings += 1
+    console.warn(`WARNING: override-rules.json names "${name}", which is not on the list.`)
+  }
+}
 
 const counts = Object.fromEntries(
   RATINGS.map((rating) => [rating, entries.filter((entry) => entry.rating === rating).length]),

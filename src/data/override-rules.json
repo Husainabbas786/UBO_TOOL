@@ -1,0 +1,14 @@
+{
+  "decidedBy": "Compliance (Althaf), email of 8 Oct 2026",
+  "note": "How the spreadsheet's Override tier is displayed, by party type. 'company' covers companies, trusts, foundations and NPOs (country of incorporation); 'individual' is nationality. Keys must match the canonical country name in country-risk.json. An Override country with no entry here shows company -> Blacklisted, individual -> High.",
+  "rules": {
+    "Iran": { "individual": "High", "company": "Blacklisted" },
+    "Myanmar": { "individual": "High", "company": "Blacklisted" },
+    "North Korea - Democratic People's Republic of Korea (DPRK)": {
+      "individual": "Blacklisted",
+      "company": "Blacklisted",
+      "shortName": "North Korea",
+      "demonym": "North Korean"
+    }
+  }
+}

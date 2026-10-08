@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { lookupRisk, searchCountries } from '../risk/countryRisk'
+import type { PartyType } from '../engine'
+import { resolveRisk, searchCountries } from '../risk/countryRisk'
 import { RiskChip } from './RiskChip'
 
 interface CountryPickerProps {
@@ -9,6 +10,8 @@ interface CountryPickerProps {
   /** "Nationality" for a person, "Country of incorporation" for anything else. */
   placeholder: string
   ariaLabel: string
+  /** Who the country is for: the list's top tier reads differently for each. */
+  partyType: PartyType
   /** Off until the party has a name: a country belongs to a party, not a row. */
   disabled?: boolean
   className?: string
@@ -27,6 +30,7 @@ export function CountryPicker({
   onChange,
   placeholder,
   ariaLabel,
+  partyType,
   disabled = false,
   className = 'w-[10rem]',
 }: CountryPickerProps) {
@@ -87,7 +91,7 @@ export function CountryPicker({
   }
 
   const activeId = open && options[active] ? `${listId}-${active}` : undefined
-  const rating = lookupRisk(value)?.rating
+  const rating = resolveRisk(value, partyType)
 
   return (
     <div className={`relative shrink-0 ${className}`}>
@@ -160,7 +164,7 @@ export function CountryPicker({
                 } ${country === value ? 'font-semibold' : ''}`}
               >
                 <span>{country}</span>
-                <RiskChip rating={lookupRisk(country)?.rating} />
+                <RiskChip rating={resolveRisk(country, partyType)} />
               </li>
             ))
           )}

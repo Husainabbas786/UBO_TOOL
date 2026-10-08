@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { DESIGNATIONS, toKey, type Designation } from '../engine'
 import type { CountryMap } from '../risk/jurisdiction'
+import { BlacklistWarning } from './BlacklistWarning'
 import { CountryPicker } from './CountryPicker'
 import type { ManagementRowState } from '../lib/rows'
 import { isManagementRowDirty } from '../lib/rows'
@@ -112,6 +113,7 @@ export function Management({
                 onChange={(picked) => onChangeCountry(row.name, picked)}
                 placeholder="Nationality"
                 ariaLabel={`Nationality, management row ${index + 1}`}
+                partyType="individual"
                 disabled={toKey(row.name) === ''}
               />
 
@@ -125,6 +127,11 @@ export function Management({
                 ×
               </Button>
             </div>
+            <BlacklistWarning
+              country={countries.get(toKey(row.name))}
+              partyType="individual"
+              className="mt-2 pl-[1.875rem]"
+            />
           </div>
         ))}
       </div>

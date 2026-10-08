@@ -79,7 +79,7 @@ export function IntermediariesTable({
           </thead>
           <tbody>
             {result.screening.map((party) => {
-              const place = countryRiskOf(countries, party.key)
+              const place = countryRiskOf(countries, party.key, party.type)
               return (
                 <tr key={party.key} className="border-b border-line last:border-0">
                   <td className="h-row pr-4 align-middle font-semibold text-ink">{party.name}</td>

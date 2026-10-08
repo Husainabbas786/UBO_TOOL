@@ -1,4 +1,5 @@
 import type { PartyNode } from '../engine'
+import { BlacklistWarning } from './BlacklistWarning'
 import { CountryPicker } from './CountryPicker'
 import { FieldLabel, Select } from './ui'
 
@@ -30,8 +31,10 @@ function TargetCountry({
         onChange={onChange}
         placeholder="Country of incorporation"
         ariaLabel="Meydan FZ company country of incorporation"
+        partyType="company"
         className="w-[16rem]"
       />
+      <BlacklistWarning country={country} partyType="company" className="mt-1.5" />
     </div>
   )
 }

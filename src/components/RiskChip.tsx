@@ -1,4 +1,4 @@
-import type { RiskRating } from '../risk/countryRisk'
+import type { DisplayRisk } from '../risk/countryRisk'
 import { chart } from '../theme/tokens'
 
 /**
@@ -9,7 +9,7 @@ import { chart } from '../theme/tokens'
  * the chart uses, so the chip is identical on screen, in the chart and in an
  * exported PNG or PDF.
  */
-export function RiskChip({ rating }: { rating: RiskRating | null | undefined }) {
+export function RiskChip({ rating }: { rating: DisplayRisk | null | undefined }) {
   if (!rating || rating === 'Low') return null
   const colours = chart.riskChip[rating]
   return (

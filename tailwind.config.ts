@@ -49,7 +49,7 @@ export default {
         gapTint: state.gapTint,
         infoTint: state.infoTint,
         riskMedium: { DEFAULT: risk.riskMedium, tint: risk.riskMediumTint },
-        riskOverride: risk.riskOverride,
+        riskBlacklisted: risk.riskBlacklisted,
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],

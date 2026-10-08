@@ -9,7 +9,8 @@ import {
   type UboSummaryEntry,
 } from '../../engine'
 import { RISK_LIST_AS_OF } from '../../risk/countryRisk'
-import { jurisdictionRisk, type CountryMap } from '../../risk/jurisdiction'
+import { blacklistedParties, jurisdictionRisk, type CountryMap } from '../../risk/jurisdiction'
+import { risk as riskTone } from '../../theme/tokens'
 import { RiskChip } from '../RiskChip'
 
 /** "A", "A and B", "A, B and C". */
@@ -170,9 +171,32 @@ export function SummaryBlock({
   const count = result.ubos.length
   const groups = result.relatedGroups
   const jurisdiction = jurisdictionRisk(result, countries, { targetCountryIsDefault })
+  const blacklisted = blacklistedParties(result, countries)
 
   return (
     <div className="space-y-4">
+      {/* Above everything else: a blacklisted party cannot be onboarded, so
+          this is the first thing a reviewer must read. A flag, not a block —
+          the rest of the Summary still documents the structure. */}
+      {blacklisted.length > 0 ? (
+        <div
+          role="alert"
+          className="rounded-card border-2 px-4 py-3"
+          style={{ borderColor: riskTone.riskBlacklisted, background: riskTone.riskBlacklistedTint }}
+        >
+          <p className="text-body font-semibold" style={{ color: riskTone.riskBlacklisted }}>
+            Blacklisted parties — onboarding not permitted
+          </p>
+          <ul className="mt-1.5 space-y-0.5 text-body" style={{ color: riskTone.riskBlacklisted }}>
+            {blacklisted.map((party) => (
+              <li key={party.key}>
+                <span className="font-semibold">{party.name}</span> ({party.description})
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <p
         className={`rounded-card border px-4 py-3 text-body font-semibold ${
           count > 0

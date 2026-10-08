@@ -51,15 +51,16 @@ export const state = {
 
 /**
  * Country risk, from Compliance's country risk list. Display only — a rating
- * never changes a calculation. High reuses `accent.coral`, the existing caution
+ * never changes a calculation, and never blocks it. High reuses `accent.coral`, the existing caution
  * colour; the other two tiers need colours of their own:
  *
  * - `riskMedium` — a dark amber. Dark enough to read as text on its own tint
  *   (AA at chip size), and clearly apart from coral so Medium and High never
  *   blur together.
- * - `riskOverride` — crimson, for the countries Compliance overrides outright
- *   (Iran, Myanmar, North Korea). Used as a solid fill with white text, so it is
- *   the loudest thing on a node without touching the node's border.
+ * - `riskBlacklisted` — crimson, for a party that cannot be onboarded (the
+ *   list's Override tier, resolved by party type). A solid fill with white text
+ *   on chips, and the colour of every "onboarding not permitted" warning, so it
+ *   is the loudest thing on the page without touching a node's border.
  *
  * Risk is always shown as a chip, never as a node border or fill: borders
  * already say UBO, company and Meydan FZ company.
@@ -67,7 +68,9 @@ export const state = {
 export const risk = {
   riskMedium: '#9A6200',
   riskMediumTint: '#FDF3DC',
-  riskOverride: '#A4161A',
+  riskBlacklisted: '#A4161A',
+  /** Background of the Summary's blacklisted-parties banner. */
+  riskBlacklistedTint: '#FBE7E8',
 } as const
 
 /**
@@ -204,7 +207,7 @@ export const chart = {
      * plain #D26153 on its own tint is about 3.3:1, too faint at chip size.
      */
     High: { fill: '#FBE9E6', stroke: '#D26153', text: '#B4473A' },
-    Override: { fill: '#A4161A', stroke: '#A4161A', text: '#FFFFFF' },
+    Blacklisted: { fill: '#A4161A', stroke: '#A4161A', text: '#FFFFFF' },
   },
   surface: '#FFFFFF',
 } as const

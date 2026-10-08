@@ -126,7 +126,9 @@ describe('chart country line', () => {
   it('puts the country and rating on each party with one', () => {
     expect(node('yangda corporation')).toMatchObject({ country: 'Panama', risk: 'Medium' })
     expect(node('ahmad zai')).toMatchObject({ country: 'Afghanistan', risk: 'High' })
-    expect(node('persia holdings')).toMatchObject({ country: 'Iran', risk: 'Override' })
+    // Override-tier countries are shown by party type.
+    expect(node('persia holdings')).toMatchObject({ country: 'Iran', risk: 'Blacklisted' })
+    expect(node('reza karimi')).toMatchObject({ country: 'Iran', risk: 'High' })
     expect(node('sara ali')).toMatchObject({ country: 'United Arab Emirates', risk: 'Low' })
   })
 
@@ -139,7 +141,8 @@ describe('chart country line', () => {
 
   it('gives management boxes a country line too', () => {
     const officer = layout.nodes.find((candidate) => candidate.isManagement)!
-    expect(officer).toMatchObject({ country: 'Myanmar', risk: 'Override' })
+    // A director is a person: a Myanmar national is High, not blacklisted.
+    expect(officer).toMatchObject({ country: 'Myanmar', risk: 'High' })
   })
 
   it('wraps a long country so its chip stays inside the box', () => {
@@ -151,21 +154,23 @@ describe('chart country line', () => {
     expect(long.countryLines.length).toBeGreaterThan(1)
     const last = long.countryLines[long.countryLines.length - 1]!
     const chipRight =
-      38 + textWidth(last, COUNTRY_FONT_SIZE) + RISK_CHIP_GAP + riskChipWidth('Override')
+      38 + textWidth(last, COUNTRY_FONT_SIZE) + RISK_CHIP_GAP + riskChipWidth('Blacklisted')
     expect(chipRight).toBeLessThanOrEqual(long.width)
   })
 })
 
 describe('jurisdictionRisk', () => {
-  it('lists Medium and above, Override first, with type and country', () => {
+  it('lists Medium and above, Blacklisted first, with type and country', () => {
     const { tiers } = jurisdictionRisk(run(), COUNTRIES)
-    expect(tiers.map((tier) => tier.rating)).toEqual(['Override', 'High', 'Medium'])
+    expect(tiers.map((tier) => tier.rating)).toEqual(['Blacklisted', 'High', 'Medium'])
     expect(tiers[0]!.parties.map((p) => `${p.name} (${p.typeLabel}) — ${p.country}`)).toEqual([
       'Persia Holdings (company) — Iran',
+    ])
+    expect(tiers[1]!.parties.map((p) => `${p.name} (${p.typeLabel}) — ${p.country}`)).toEqual([
+      'Ahmad Zai (individual) — Afghanistan',
       'Reza Karimi (individual) — Iran',
       'Omar Haddad (individual) — Myanmar',
     ])
-    expect(tiers[1]!.parties.map((p) => p.name)).toEqual(['Ahmad Zai'])
     expect(tiers[2]!.parties.map((p) => `${p.name} (${p.typeLabel}) — ${p.country}`)).toEqual([
       'Yangda Corporation (company) — Panama',
     ])
@@ -226,7 +231,7 @@ describe('jurisdictionRisk', () => {
 
 describe('countryRiskOf', () => {
   it('reads blank as no country', () => {
-    expect(countryRiskOf(new Map([['a', '']]), 'a')).toEqual({ country: null, risk: null })
-    expect(countryRiskOf(new Map(), 'a')).toEqual({ country: null, risk: null })
+    expect(countryRiskOf(new Map([['a', '']]), 'a', 'company')).toEqual({ country: null, risk: null })
+    expect(countryRiskOf(new Map(), 'a', 'individual')).toEqual({ country: null, risk: null })
   })
 })
