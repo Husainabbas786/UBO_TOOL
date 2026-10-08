@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { CalculationResult } from '../../engine'
+import type { CountryMap } from '../../risk/jurisdiction'
 import { Card } from '../ui'
 import { BlockActions } from './BlockActions'
 import { IntermediariesTable } from './IntermediariesTable'
@@ -11,7 +12,14 @@ import { SummaryBlock } from './SummaryBlock'
  * The four result blocks, in spec order. Each holds its own ref so it can be
  * saved as a PNG or a PDF on its own, independently of the others.
  */
-export function ResultsPanel({ result }: { result: CalculationResult }) {
+export function ResultsPanel({
+  result,
+  countries,
+}: {
+  result: CalculationResult
+  /** Display only — read live, so a country edit shows without recalculating. */
+  countries: CountryMap
+}) {
   const chartRef = useRef<HTMLElement>(null)
   const pathsRef = useRef<HTMLElement>(null)
   const summaryRef = useRef<HTMLElement>(null)
@@ -29,7 +37,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
           <BlockActions blockRef={chartRef} target={target} block="Chart" orientation="landscape" />
         }
       >
-        <OwnershipChart result={result} />
+        <OwnershipChart result={result} countries={countries} />
       </Card>
 
       <Card
@@ -55,7 +63,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
           />
         }
       >
-        <SummaryBlock result={result} />
+        <SummaryBlock result={result} countries={countries} />
       </Card>
 
       <Card
@@ -71,7 +79,7 @@ export function ResultsPanel({ result }: { result: CalculationResult }) {
           />
         }
       >
-        <IntermediariesTable result={result} />
+        <IntermediariesTable result={result} countries={countries} />
       </Card>
     </div>
   )

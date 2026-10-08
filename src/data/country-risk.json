@@ -1,0 +1,1281 @@
+{
+  "asOf": "2026-10-08",
+  "sourceFile": "data/country-risk.xlsx",
+  "entries": [
+    {
+      "country": "Aaland Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Afghanistan",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Albania",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Algeria",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "American Samoa",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Andorra",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Angola",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Anguilla",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Antarctica",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Antigua and Barbuda",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Argentina",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Armenia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Aruba",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Australia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Austria",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Azerbaijan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Bahamas",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Bahrain",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Balkans",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Bangladesh",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Barbados",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Belarus",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Belgium",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Belize",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Benin",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Bermuda",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Bhutan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Bolivia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Bosnia and Herzegovina",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Botswana",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Bouvet Island",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Brazil",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "British Indian Ocean Territory",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "British Virgin Islands",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Brunei Darussalam",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Bulgaria",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Burkina Faso",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Burundi",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Cabo Verde",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Cambodia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Cameroon",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Canada",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Caribbean Netherlands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Cayman Islands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Central African Republic",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Chad",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Chile",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "China",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Chinese Taipei",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Christmas Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Cocos (Keeling) Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Colombia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Comoros",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Cook Islands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Costa Rica",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Croatia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Cuba",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Cyprus",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Czech Republic",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Democratic Republic of the Congo",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Denmark",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Djibouti",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Dominica",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Dominican Republic",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "East Timor - (Timor Leste)",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Ecuador",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Egypt",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "El Salvador",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Equatorial Guinea",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Eritrea",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Estonia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Eswatini",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Ethiopia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Falkland Islands (Malvinas)",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Faroe Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Fiji",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Finland",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "France",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "French Guiana",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "French Polynesia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "French Southern Territories",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Gabon",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Gambia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Gaza Strip",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Georgia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Germany",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Ghana",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Gibraltar",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Greece",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Greenland",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Grenada",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Guadeloupe",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Guam",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Guatemala",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Guernsey",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Guinea",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Guinea Bissau",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Guyana",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Haiti",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Heard and Mcdonald Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Holy See",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Honduras",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Hong Kong",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Hungary",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Iceland",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "India",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Indonesia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Iran",
+      "score": 100,
+      "rating": "Override"
+    },
+    {
+      "country": "Iraq",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Ireland",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Isle of Man",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Israel",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Italy",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Ivory Coast - (Cote D'Ivoire)",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Jamaica",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Japan",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Jersey",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Jordan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Kazakhstan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Kenya",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Kiribati",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "KOSOVO",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Kuwait",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Kyrgyzstan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Lao People's Democratic Republic",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Latvia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Lebanon",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Lesotho",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Liberia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Libya",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Liechtenstein",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Lithuania",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Luxembourg",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Macao",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Macedonia - Republic of North Macedonia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Madagascar",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Malawi",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Malaysia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Maldives",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Mali",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Malta",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Marshall Islands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Martinique",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Mauritania",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Mauritius",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Mayotte",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Mexico",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Micronesia, Federated States of",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Moldova",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Monaco",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Mongolia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Montenegro",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Montserrat",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Morocco",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Mozambique",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Myanmar",
+      "score": 100,
+      "rating": "Override"
+    },
+    {
+      "country": "Namibia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Nauru",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Nepal",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Netherlands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "New Caledonia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "New Zealand",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Nicaragua",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Niger",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Nigeria",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Niue",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Norfolk Island",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "North Korea - Democratic People's Republic of Korea (DPRK)",
+      "score": 100,
+      "rating": "Override"
+    },
+    {
+      "country": "Northern Mariana Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Norway",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Oman",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Pakistan",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Palau",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Palestinian Territory",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Panama",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Papua New Guinea",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Paraguay",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Peru",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Philippines",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Pitcairn",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Poland",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Portugal",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Puerto Rico",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Qatar",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Republic of Congo (Congo - Brazzaville)",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Republic of Somaliland",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Reunion",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Romania",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Russia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Rwanda",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Saint Barthelem",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "SAINT EUSTATIUS",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Saint Kitts and Nevis",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Saint Lucia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Samoa",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "San Marino",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Sao Tomé and Principe",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Saudi Arabia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Senegal",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Serbia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Serbia and Montenegro",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Seychelles",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Sierra Leone",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Singapore",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Slovakia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Slovenia",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Solomon Islands",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Somalia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "South Africa",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "South Georgia & South Sandwich Is",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "South Korea",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "South Sudan",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Spain",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Sri Lanka",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "St. Helena",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "St. Pierre and Miquelon",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "St. Vincent and the Grenadines",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "St.Martin",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Sudan",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Suriname",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Svalbard and Jan Mayen Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Sweden",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Switzerland",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Syria",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Taiwan",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Tajikistan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Tanzania",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Thailand",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Togo",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Tokelau",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Tonga",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Trinidad and Tobago",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Tunisia",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Turkey",
+      "score": 30,
+      "rating": "Medium"
+    },
+    {
+      "country": "Turkmenistan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Turks and Caicos Islands",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Tuvalu",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Uganda",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Ukraine",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "United Arab Emirates",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "United Kingdom",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "United States",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "United States Minor Outlying Is.",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Uruguay",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Uzbekistan",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Vanuatu",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Vatican City State",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Venezuela",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Vietnam",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Virgin Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Wallis and Futuna Islands",
+      "score": 10,
+      "rating": "Low"
+    },
+    {
+      "country": "Western Sahara",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Yemen",
+      "score": 30,
+      "rating": "High"
+    },
+    {
+      "country": "Zambia",
+      "score": 20,
+      "rating": "Medium"
+    },
+    {
+      "country": "Zimbabwe",
+      "score": 30,
+      "rating": "High"
+    }
+  ]
+}

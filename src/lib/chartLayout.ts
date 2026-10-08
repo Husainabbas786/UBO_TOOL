@@ -7,6 +7,8 @@ import {
   type EntityKind,
   type PartyType,
 } from '../engine'
+import type { RiskRating } from '../risk/countryRisk'
+import { countryRiskOf, type CountryMap } from '../risk/jurisdiction'
 
 /** How an edge is drawn and coloured. */
 export type EdgeTone = 'ownership' | 'control' | 'role' | 'nominee'
@@ -27,6 +29,14 @@ export interface ChartNode {
   isManagement: boolean
   /** Short words along the top edge: a role, or "Control". */
   badges: string[]
+  /**
+   * The party's country, wrapped like the name, with its risk rating. Display
+   * only — set from the country list, never from anything the engine worked out.
+   * Null when no country was entered, and the box is then drawn as it always was.
+   */
+  country: string | null
+  countryLines: string[]
+  risk: RiskRating | null
   /** Second line in the box: the target's label, the kind, or the effective %. */
   subLabel: string | null
   x: number
@@ -85,6 +95,21 @@ const NODE_PAD_Y = 12
 const LINE_HEIGHT = 16
 const SUB_HEIGHT = 16
 export const SUB_FONT_SIZE = 11
+
+/** The country line sits under the name, at the sub-label's size. */
+export const COUNTRY_FONT_SIZE = SUB_FONT_SIZE
+export const COUNTRY_LINE_HEIGHT = LINE_HEIGHT
+
+/** A risk chip at the end of the country line. Low has none. */
+export const RISK_CHIP_FONT_SIZE = 9.5
+export const RISK_CHIP_HEIGHT = 14
+const RISK_CHIP_PAD_X = 6
+export const RISK_CHIP_GAP = 6
+
+export function riskChipWidth(risk: RiskRating | null): number {
+  if (risk === null || risk === 'Low') return 0
+  return Math.ceil(textWidth(risk, RISK_CHIP_FONT_SIZE) + RISK_CHIP_PAD_X * 2)
+}
 
 export const NAME_FONT_SIZE = 12.5
 export const NAME_LINE_HEIGHT = LINE_HEIGHT
@@ -162,11 +187,11 @@ export function textWidth(text: string, fontSize = NAME_FONT_SIZE): number {
 }
 
 /** Splits a word that is longer than a whole line, so nothing is ever cut off. */
-function breakLongWord(word: string, maxWidth: number): string[] {
+function breakLongWord(word: string, maxWidth: number, fontSize: number): string[] {
   const pieces: string[] = []
   let current = ''
   for (const char of word) {
-    if (current !== '' && textWidth(current + char) > maxWidth) {
+    if (current !== '' && textWidth(current + char, fontSize) > maxWidth) {
       pieces.push(current)
       current = char
     } else {
@@ -182,22 +207,22 @@ function breakLongWord(word: string, maxWidth: number): string[] {
  * many lines as it needs: the full name has to stay readable, on screen and in
  * the exported file, so truncation is never an option.
  */
-export function wrapName(name: string, maxWidth: number): string[] {
+export function wrapName(name: string, maxWidth: number, fontSize = NAME_FONT_SIZE): string[] {
   const lines: string[] = []
   let current = ''
 
   for (const word of name.split(' ').filter((part) => part !== '')) {
     const candidate = current === '' ? word : `${current} ${word}`
-    if (textWidth(candidate) <= maxWidth) {
+    if (textWidth(candidate, fontSize) <= maxWidth) {
       current = candidate
       continue
     }
     if (current !== '') lines.push(current)
-    if (textWidth(word) <= maxWidth) {
+    if (textWidth(word, fontSize) <= maxWidth) {
       current = word
       continue
     }
-    const pieces = breakLongWord(word, maxWidth)
+    const pieces = breakLongWord(word, maxWidth, fontSize)
     lines.push(...pieces.slice(0, -1))
     current = pieces[pieces.length - 1] ?? ''
   }
@@ -208,6 +233,9 @@ export function wrapName(name: string, maxWidth: number): string[] {
 
 interface MeasuredNode {
   nameLines: string[]
+  country: string | null
+  countryLines: string[]
+  risk: RiskRating | null
   subLabel: string | null
   badges: string[]
   width: number
@@ -224,17 +252,51 @@ interface MeasuredNode {
 function measureNode(
   nameLines: string[],
   subLabel: string | null,
+  country: CountryText = NO_COUNTRY,
 ): { width: number; height: number } {
-  const longest = nameLines.reduce(
+  let longest = nameLines.reduce(
     (max, line) => Math.max(max, textWidth(line)),
     subLabel === null ? 0 : textWidth(subLabel, SUB_FONT_SIZE),
   )
+  // The chip rides on the last country line, so that line is measured with it.
+  country.lines.forEach((line, index) => {
+    const chip =
+      index === country.lines.length - 1 && country.chipWidth > 0
+        ? RISK_CHIP_GAP + country.chipWidth
+        : 0
+    longest = Math.max(longest, textWidth(line, COUNTRY_FONT_SIZE) + chip)
+  })
   const width = Math.min(
     NODE_MAX_WIDTH,
     Math.max(NODE_MIN_WIDTH, Math.ceil(TEXT_X + longest + TEXT_PAD_RIGHT)),
   )
-  const content = nameLines.length * LINE_HEIGHT + (subLabel === null ? 0 : SUB_HEIGHT)
+  const content =
+    nameLines.length * LINE_HEIGHT +
+    country.lines.length * COUNTRY_LINE_HEIGHT +
+    (subLabel === null ? 0 : SUB_HEIGHT)
   return { width, height: Math.max(NODE_MIN_HEIGHT, content + NODE_PAD_Y * 2) }
+}
+
+interface CountryText {
+  country: string | null
+  lines: string[]
+  risk: RiskRating | null
+  chipWidth: number
+}
+
+const NO_COUNTRY: CountryText = { country: null, lines: [], risk: null, chipWidth: 0 }
+
+/**
+ * A party's country line, wrapped to the box. Every line leaves room for the
+ * chip, so "North Korea - Democratic People's Republic of Korea (DPRK)" wraps
+ * without the Override chip ever running out of the box.
+ */
+function countryText(countries: CountryMap, key: string, maxWidth: number): CountryText {
+  const { country, risk } = countryRiskOf(countries, key)
+  if (country === null) return NO_COUNTRY
+  const chipWidth = riskChipWidth(risk)
+  const room = maxWidth - (chipWidth > 0 ? chipWidth + RISK_CHIP_GAP : 0)
+  return { country, lines: wrapName(country, room, COUNTRY_FONT_SIZE), risk, chipWidth }
 }
 
 /**
@@ -341,7 +403,10 @@ function pairEdges(result: CalculationResult): PairEdge[] {
  * No ownership maths happens here: every percentage comes from the engine's
  * result, and every node comes from the engine's de-duplicated graph.
  */
-export function layoutChart(result: CalculationResult): ChartLayout {
+export function layoutChart(
+  result: CalculationResult,
+  countries: CountryMap = new Map(),
+): ChartLayout {
   // Multigraph: two arrows can join the same pair of boxes — see pairEdges.
   const graph = new dagre.graphlib.Graph({ multigraph: true })
   graph.setGraph({ rankdir: 'TB', ranksep: 74, nodesep: 40, edgesep: 16, marginx: 8, marginy: 8 })
@@ -398,11 +463,15 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     if (node.isController) badges.push('Control')
 
     const nameLines = wrapName(node.name, nameWidth)
+    const place = countryText(countries, node.key, nameWidth)
     measured.set(node.key, {
       nameLines,
+      country: place.country,
+      countryLines: place.lines,
+      risk: place.risk,
       subLabel,
       badges,
-      ...measureNode(nameLines, subLabel),
+      ...measureNode(nameLines, subLabel, place),
     })
   }
 
@@ -415,10 +484,12 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   const mgmtNameWidth = MGMT_MAX_WIDTH - TEXT_X - TEXT_PAD_RIGHT
   const mgmtBoxes = result.management.map((person) => {
     const nameLines = wrapName(person.name, mgmtNameWidth)
-    const sized = measureNode(nameLines, person.designation)
+    const place = countryText(countries, person.key, mgmtNameWidth)
+    const sized = measureNode(nameLines, person.designation, place)
     return {
       person,
       nameLines,
+      place,
       width: Math.min(MGMT_MAX_WIDTH, sized.width),
       height: sized.height,
     }
@@ -523,6 +594,7 @@ export function layoutChart(result: CalculationResult): ChartLayout {
   const placed: Array<{
     person: (typeof mgmtBoxes)[number]['person']
     nameLines: string[]
+    place: CountryText
     x: number
     y: number
     width: number
@@ -533,6 +605,7 @@ export function layoutChart(result: CalculationResult): ChartLayout {
     placed.push({
       person: box.person,
       nameLines: box.nameLines,
+      place: box.place,
       x: laneX,
       y: cursorY,
       width: box.width,
@@ -584,6 +657,9 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       isUbo: uboKeys.has(node.key),
       isManagement: false,
       badges: box.badges,
+      country: box.country,
+      countryLines: box.countryLines,
+      risk: box.risk,
       subLabel: box.subLabel,
       x: snap(positioned.x - box.width / 2 + shiftX),
       y: snap(positioned.y - box.height / 2 + shiftY),
@@ -603,6 +679,9 @@ export function layoutChart(result: CalculationResult): ChartLayout {
       isUbo: false,
       isManagement: true,
       badges: [],
+      country: box.place.country,
+      countryLines: box.place.lines,
+      risk: box.place.risk,
       subLabel: box.person.designation,
       x: snap(box.x + shiftX),
       y: snap(box.y + shiftY),

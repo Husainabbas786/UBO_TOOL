@@ -36,6 +36,7 @@ import { TargetSelect } from './components/TargetSelect'
 import { ThresholdSelect } from './components/ThresholdSelect'
 import { Header } from './components/Header'
 import { ResultsPanel } from './components/results/ResultsPanel'
+import { DEFAULT_TARGET_COUNTRY } from './risk/jurisdiction'
 import { Button, Card } from './components/ui'
 
 export default function App() {
@@ -46,6 +47,15 @@ export default function App() {
   const [chosenTargetKey, setChosenTargetKey] = useState<string | null>(null)
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [engineError, setEngineError] = useState<string | null>(null)
+  /**
+   * Each party's country, keyed by normalised name. Kept apart from the rows —
+   * a country belongs to a party, not to one of its shareholdings — and apart
+   * from the calculation, which never sees it. '' records a deliberate clear,
+   * so the Meydan FZ company's UAE default does not come back.
+   */
+  const [countryEntries, setCountryEntries] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  )
 
   const graph = useMemo(() => buildGraph(rows), [rows])
   /** Only the links the agent has actually started; a blank one is ignored. */
@@ -80,6 +90,21 @@ export default function App() {
     chosenTargetKey && graph.targetCandidates.some((c) => c.key === chosenTargetKey)
       ? chosenTargetKey
       : defaultTargetKey(graph)
+
+  /** The countries to show: everything entered, plus the target's UAE default. */
+  const countries = useMemo(() => {
+    const resolved = new Map<string, string>()
+    for (const [key, country] of countryEntries) if (country !== '') resolved.set(key, country)
+    if (targetKey !== null && !countryEntries.has(targetKey)) {
+      resolved.set(targetKey, DEFAULT_TARGET_COUNTRY)
+    }
+    return resolved
+  }, [countryEntries, targetKey])
+
+  const setCountry = (key: string, country: string) => {
+    if (key === '') return
+    setCountryEntries((current) => new Map(current).set(key, country))
+  }
 
   // Validation needs the target: the company being analysed holds 100% of
   // itself, so it can never be a member of a related-party group.
@@ -258,6 +283,7 @@ export default function App() {
   }
 
   const handleStartOver = () => {
+    setCountryEntries(new Map())
     setRows([blankRow()])
     setRelatedRows([])
     setManagementRows([])
@@ -268,6 +294,7 @@ export default function App() {
   }
 
   const handleLoadExample = () => {
+    setCountryEntries(new Map())
     setRows(exampleRows())
     setRelatedRows([])
     setManagementRows([])
@@ -295,6 +322,8 @@ export default function App() {
             partyIssues={partyIssues}
             entityPlaceholder={entityPlaceholder}
             ownerKinds={ownerKinds}
+            countries={countries}
+            onChangeCountry={(name, country) => setCountry(toKey(name), country)}
             onChangeRow={handleChangeRow}
             onChangeOwnerKind={handleChangeOwnerKind}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
@@ -325,6 +354,8 @@ export default function App() {
           <Management
             rows={managementRows}
             targetName={targetKey ? (graph.nodeByKey.get(targetKey)?.name ?? null) : null}
+            countries={countries}
+            onChangeCountry={(name, country) => setCountry(toKey(name), country)}
             onChange={(updated) =>
               setManagementRows((current) =>
                 current.map((row) => (row.id === updated.id ? updated : row)),
@@ -346,6 +377,8 @@ export default function App() {
               candidates={graph.targetCandidates}
               value={targetKey}
               onChange={setChosenTargetKey}
+              country={targetKey ? (countries.get(targetKey) ?? '') : ''}
+              onChangeCountry={(country) => targetKey && setCountry(targetKey, country)}
             />
           </Card>
         </div>
@@ -386,7 +419,7 @@ export default function App() {
         {/* The results run wider than the input column so a deep chart fits. */}
         {result ? (
           <div className="mx-auto mt-8 max-w-results px-6">
-            <ResultsPanel result={result} />
+            <ResultsPanel result={result} countries={countries} />
           </div>
         ) : null}
       </main>

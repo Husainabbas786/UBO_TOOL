@@ -32,6 +32,11 @@
   --ubo-tint: #ecf6e4;
   --gap-tint: #fbe9e6;
 
+  /* Country risk chips (tokens.ts `risk`); High reuses --coral. */
+  --risk-medium: #9a6200;
+  --risk-medium-tint: #fdf3dc;
+  --risk-override: #a4161a;
+
   --radius-input: 6px;
   --radius-card: 10px;
   --row-height: 46px;

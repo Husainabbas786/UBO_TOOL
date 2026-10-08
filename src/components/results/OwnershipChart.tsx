@@ -1,15 +1,24 @@
 import { useMemo } from 'react'
 import { isNonCommercial, type CalculationResult } from '../../engine'
+import { RISK_LIST_AS_OF, type RiskRating } from '../../risk/countryRisk'
+import type { CountryMap } from '../../risk/jurisdiction'
 import { chart as palette } from '../../theme/tokens'
 import {
   badgeBoxes,
   BADGE_FONT_SIZE,
   BADGE_HEIGHT,
+  COUNTRY_FONT_SIZE,
+  COUNTRY_LINE_HEIGHT,
   layoutChart,
   LABEL_HEIGHT,
   NAME_FONT_SIZE,
   NAME_LINE_HEIGHT,
   NODE_TEXT_X,
+  RISK_CHIP_FONT_SIZE,
+  RISK_CHIP_GAP,
+  RISK_CHIP_HEIGHT,
+  riskChipWidth,
+  textWidth,
   type ChartEdge,
   type ChartNode,
 } from '../../lib/chartLayout'
@@ -42,6 +51,45 @@ function badgePalette(text: string) {
   return palette.roleBadge
 }
 
+/** The chip tiers, in the order the legend lists them. */
+const CHIP_TIERS: Array<Exclude<RiskRating, 'Low'>> = ['Medium', 'High', 'Override']
+
+/**
+ * A country risk chip, at the end of a node's country line. A pill inside the
+ * box, never a border or a fill: the border already says UBO, company or
+ * Meydan FZ company, and risk must not be read as any of those.
+ */
+function RiskChipSvg({ risk, x, baseline }: { risk: RiskRating; x: number; baseline: number }) {
+  if (risk === 'Low') return null
+  const colours = palette.riskChip[risk]
+  const width = riskChipWidth(risk)
+  const y = baseline - RISK_CHIP_HEIGHT + 3.5
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={RISK_CHIP_HEIGHT}
+        rx={RISK_CHIP_HEIGHT / 2}
+        fill={colours.fill}
+        stroke={colours.stroke}
+        strokeWidth={1}
+      />
+      <text
+        x={x + width / 2}
+        y={y + 10}
+        textAnchor="middle"
+        fontSize={RISK_CHIP_FONT_SIZE}
+        fontWeight={600}
+        fill={colours.text}
+      >
+        {risk}
+      </text>
+    </g>
+  )
+}
+
 /** The arrowhead colour has to be declared per tone, so each tone gets a marker. */
 const MARKERS: Array<{ id: string; tone: ChartEdge['tone'] }> = [
   { id: 'ubo-arrow', tone: 'ownership' },
@@ -57,8 +105,15 @@ const MARKER_FOR: Record<ChartEdge['tone'], string> = {
   nominee: 'ubo-arrow-nominee',
 }
 
-export function OwnershipChart({ result }: { result: CalculationResult }) {
-  const layout = useMemo(() => layoutChart(result), [result])
+export function OwnershipChart({
+  result,
+  countries,
+}: {
+  result: CalculationResult
+  countries: CountryMap
+}) {
+  const layout = useMemo(() => layoutChart(result, countries), [result, countries])
+  const tiersDrawn = CHIP_TIERS.filter((tier) => layout.nodes.some((node) => node.risk === tier))
 
   const hasRoles = layout.edges.some((edge) => edge.tone === 'role')
   const hasNominees = layout.edges.some((edge) => edge.tone === 'nominee')
@@ -148,11 +203,20 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
 
           {layout.nodes.map((node) => {
             const colours = paletteFor(node)
-            const { subLabel, nameLines } = node
-            // Centre the name block, plus its sub-label, within the box.
+            const { subLabel, nameLines, countryLines } = node
+            // Centre the name block, its country and its sub-label within the box.
             const blockHeight =
-              nameLines.length * NAME_LINE_HEIGHT + (subLabel ? NAME_LINE_HEIGHT : 0)
+              nameLines.length * NAME_LINE_HEIGHT +
+              countryLines.length * COUNTRY_LINE_HEIGHT +
+              (subLabel ? NAME_LINE_HEIGHT : 0)
             const firstBaseline = node.y + (node.height - blockHeight) / 2 + NAME_FONT_SIZE
+            const countryBaseline = (index: number) =>
+              Math.round(
+                firstBaseline +
+                  (nameLines.length - 1) * NAME_LINE_HEIGHT +
+                  (index + 1) * COUNTRY_LINE_HEIGHT,
+              )
+            const lastCountryLine = countryLines[countryLines.length - 1] ?? ''
             return (
               <g key={node.key}>
                 <rect
@@ -187,10 +251,38 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
                     {line}
                   </text>
                 ))}
+                {countryLines.map((line, index) => (
+                  <text
+                    key={`country-${index}`}
+                    x={node.x + NODE_TEXT_X}
+                    y={countryBaseline(index)}
+                    fontSize={COUNTRY_FONT_SIZE}
+                    fill={node.isTarget ? palette.country.onTarget : palette.country.text}
+                    opacity={node.isTarget ? 0.85 : 1}
+                  >
+                    {line}
+                  </text>
+                ))}
+                {node.risk && countryLines.length > 0 ? (
+                  <RiskChipSvg
+                    risk={node.risk}
+                    x={Math.round(
+                      node.x +
+                        NODE_TEXT_X +
+                        textWidth(lastCountryLine, COUNTRY_FONT_SIZE) +
+                        RISK_CHIP_GAP,
+                    )}
+                    baseline={countryBaseline(countryLines.length - 1)}
+                  />
+                ) : null}
                 {subLabel ? (
                   <text
                     x={node.x + NODE_TEXT_X}
-                    y={Math.round(firstBaseline + nameLines.length * NAME_LINE_HEIGHT)}
+                    y={Math.round(
+                      firstBaseline +
+                        nameLines.length * NAME_LINE_HEIGHT +
+                        countryLines.length * COUNTRY_LINE_HEIGHT,
+                    )}
                     fontSize={11}
                     fill={node.isTarget ? '#FFFFFF' : '#6A7C8F'}
                     opacity={node.isTarget ? 0.85 : 1}
@@ -304,6 +396,17 @@ export function OwnershipChart({ result }: { result: CalculationResult }) {
             Held as nominee (the nominator is the UBO)
           </span>
         ) : null}
+        {tiersDrawn.map((tier) => (
+          <span key={tier} className="inline-flex items-center gap-1.5">
+            <svg width={riskChipWidth(tier) + 1} height={RISK_CHIP_HEIGHT + 2}>
+              <RiskChipSvg risk={tier} x={0.5} baseline={RISK_CHIP_HEIGHT - 2.5} />
+            </svg>
+            {tier} country risk
+          </span>
+        ))}
+        <span className="w-full text-small" style={{ color: palette.country.text }}>
+          Country risk list as of {RISK_LIST_AS_OF}
+        </span>
       </div>
     </div>
   )

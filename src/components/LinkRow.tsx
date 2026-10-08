@@ -4,6 +4,7 @@ import {
   entityKindLabel,
   isNonCommercial,
   rolesFor,
+  toKey,
   type EntityKind,
   type PartyType,
   type RoleHolderInput,
@@ -18,6 +19,8 @@ import {
   withOwnerType,
   withPercentText,
 } from '../lib/rows'
+import type { CountryMap } from '../risk/jurisdiction'
+import { CountryPicker } from './CountryPicker'
 import { Button, ErrorText, TextInput } from './ui'
 
 interface LinkRowProps {
@@ -34,6 +37,9 @@ interface LinkRowProps {
    */
   ownerKind: EntityKind
   canRemove: boolean
+  /** Each party's country, keyed by normalised name — shared across rows. */
+  countries: CountryMap
+  onChangeCountry: (partyName: string, country: string) => void
   onChange: (row: LinkRowState) => void
   onChangeOwnerKind: (kind: EntityKind) => void
   onRemove: () => void
@@ -154,10 +160,27 @@ export function LinkRow({
   entityPlaceholder,
   ownerKind,
   canRemove,
+  countries,
+  onChangeCountry,
   onChange,
   onChangeOwnerKind,
   onRemove,
 }: LinkRowProps) {
+  /*
+   * A country belongs to the party, not to this row: it is read and written by
+   * name, so the same person or company shows one country wherever they appear.
+   * Until a name is typed there is no party to attach it to.
+   */
+  const country = (name: string, type: PartyType, label: string) => (
+    <CountryPicker
+      value={countries.get(toKey(name)) ?? ''}
+      onChange={(picked) => onChangeCountry(name, picked)}
+      placeholder={type === 'individual' ? 'Nationality' : 'Country of incorporation'}
+      ariaLabel={label}
+      disabled={toKey(name) === ''}
+    />
+  )
+
   /*
    * Errors belonging to the row itself. A person's own errors sit under their
    * line, and are kept out of here: a role-holder named after the trust is the
@@ -193,7 +216,7 @@ export function LinkRow({
 
   return (
     <div className="rounded-card border border-line bg-white px-3 py-3">
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 wide:flex-nowrap">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 wide:flex-nowrap">
         <span className="w-5 shrink-0 text-small font-medium tabular-nums text-muted">{index + 1}</span>
 
         <div className="min-w-[8rem] flex-1">
@@ -222,6 +245,14 @@ export function LinkRow({
             />
           ) : null}
         </div>
+
+        {country(
+          row.ownerName,
+          row.ownerType,
+          row.ownerType === 'individual'
+            ? `Nationality, row ${index + 1}`
+            : `Country of incorporation, row ${index + 1}`,
+        )}
 
         <Connector>owns</Connector>
         <div className="w-[4.5rem] shrink-0">
@@ -257,8 +288,8 @@ export function LinkRow({
             checked={row.ownerIsController}
             onChange={(checked) => onChange({ ...row, ownerIsController: checked })}
             title="Controller"
-            hint="has control, e.g. voting rights"
-            width="w-[13.25rem]"
+            hint="e.g. voting rights"
+            width="w-[8.75rem]"
           />
         ) : null}
 
@@ -269,8 +300,8 @@ export function LinkRow({
             checked={row.ownerIsNominee}
             onChange={(checked) => onChange(withNominee(row, checked))}
             title="Nominee"
-            hint="holds shares for someone else"
-            width="w-[12.5rem]"
+            hint="holds for someone else"
+            width="w-[10.25rem]"
           />
         ) : null}
 
@@ -308,6 +339,7 @@ export function LinkRow({
               onChange={(t) => onChange({ ...row, nominatorType: t })}
               label={`Nominator type, row ${index + 1}`}
             />
+            {country(row.nominatorName, row.nominatorType, `Nominator country, row ${index + 1}`)}
           </div>
           <p className="mt-1.5 text-[11px] leading-tight text-navy">
             These shares still count towards{' '}
@@ -355,6 +387,11 @@ export function LinkRow({
                         label={`Person ${holderIndex + 1} type, row ${index + 1}`}
                       />
                     </div>
+                    {country(
+                      holder.name,
+                      holder.type ?? 'individual',
+                      `Person ${holderIndex + 1} country, row ${index + 1}`,
+                    )}
                     <div className="w-[11rem] shrink-0">
                       <select
                         aria-label={`Person ${holderIndex + 1} role, row ${index + 1}`}

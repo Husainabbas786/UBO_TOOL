@@ -8,6 +8,9 @@ import {
   type RelatedPartyGroup,
   type UboSummaryEntry,
 } from '../../engine'
+import { RISK_LIST_AS_OF } from '../../risk/countryRisk'
+import { jurisdictionRisk, type CountryMap } from '../../risk/jurisdiction'
+import { RiskChip } from '../RiskChip'
 
 /** "A", "A and B", "A, B and C". */
 function listOf(parts: string[]): string {
@@ -155,9 +158,16 @@ function describeGroup(group: RelatedPartyGroup, threshold: number): string {
   return `${heading}: ${sum} = ${formatPercent(group.totalPercent)}% — ${verdict}.`
 }
 
-export function SummaryBlock({ result }: { result: CalculationResult }) {
+export function SummaryBlock({
+  result,
+  countries,
+}: {
+  result: CalculationResult
+  countries: CountryMap
+}) {
   const count = result.ubos.length
   const groups = result.relatedGroups
+  const jurisdiction = jurisdictionRisk(result, countries)
 
   return (
     <div className="space-y-4">
@@ -314,6 +324,40 @@ export function SummaryBlock({ result }: { result: CalculationResult }) {
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {/* Where the parties sit, against Compliance's own list. Display only:
+          nothing here changes who is a beneficial owner or by how much. */}
+      {jurisdiction.tiers.length > 0 ? (
+        <div className="rounded-card border border-line bg-field px-4 py-3">
+          <p className="text-body font-semibold text-navy">Jurisdiction risk</p>
+          <p className="mt-0.5 text-small text-muted">
+            Assessed against the Compliance country risk list as of {RISK_LIST_AS_OF}.
+          </p>
+          <div className="mt-2 space-y-2">
+            {jurisdiction.tiers.map((tier) => (
+              <div key={tier.rating} className="flex flex-wrap items-start gap-x-3 gap-y-1">
+                <span className="w-[4.75rem] shrink-0 pt-0.5">
+                  <RiskChip rating={tier.rating} />
+                </span>
+                <ul className="min-w-0 flex-1 space-y-0.5 text-body text-navy">
+                  {tier.parties.map((party) => (
+                    <li key={party.key}>
+                      <span className="font-semibold">{party.name}</span> ({party.typeLabel}) —{' '}
+                      {party.country} — {tier.rating}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {jurisdiction.missing.length > 0 ? (
+        <p className="text-small text-muted">
+          Country not entered for: {jurisdiction.missing.join(', ')}.
+        </p>
       ) : null}
 
       <p className="text-small text-muted">

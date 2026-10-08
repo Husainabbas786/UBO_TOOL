@@ -50,6 +50,27 @@ export const state = {
 } as const
 
 /**
+ * Country risk, from Compliance's country risk list. Display only — a rating
+ * never changes a calculation. High reuses `accent.coral`, the existing caution
+ * colour; the other two tiers need colours of their own:
+ *
+ * - `riskMedium` — a dark amber. Dark enough to read as text on its own tint
+ *   (AA at chip size), and clearly apart from coral so Medium and High never
+ *   blur together.
+ * - `riskOverride` — crimson, for the countries Compliance overrides outright
+ *   (Iran, Myanmar, North Korea). Used as a solid fill with white text, so it is
+ *   the loudest thing on a node without touching the node's border.
+ *
+ * Risk is always shown as a chip, never as a node border or fill: borders
+ * already say UBO, company and Meydan FZ company.
+ */
+export const risk = {
+  riskMedium: '#9A6200',
+  riskMediumTint: '#FDF3DC',
+  riskOverride: '#A4161A',
+} as const
+
+/**
  * Tint ramp. BRAND.md says to mix each primary with white at 80/60/40/20/10%;
  * we read those as the strength of the colour, so `t80` is 80% colour and 20%
  * white and `t10` is the palest step.
@@ -130,8 +151,11 @@ export const layout = {
   resultsWidth: '1440px',
   headerHeight: '112px',
   logoHeight: '64px',
-  /** Below this the ownership row is allowed to wrap onto a second line. */
-  rowNoWrapFrom: '1100px',
+  /**
+   * Below this the ownership row is allowed to wrap onto a second line. With
+   * the country picker on the row, 1440 is the narrowest width it fits on one.
+   */
+  rowNoWrapFrom: '1440px',
   /**
    * Below this the masthead drops its right-hand label and quietens the rings:
    * at that width the two halves would collide rather than balance.
@@ -166,6 +190,18 @@ export const chart = {
   controlBadge: { fill: '#8B65A4', text: '#FFFFFF' },
   roleBadge: { fill: '#0B7A9E', text: '#FFFFFF' },
   nomineeBadge: { fill: '#D26153', text: '#FFFFFF' },
+  /** The country line under a party's name. */
+  country: { text: '#6A7C8F', onTarget: '#FFFFFF' },
+  /**
+   * Country risk chips, one per tier above Low (Low gets no chip). Literal hex
+   * mirroring `risk` and `accent.coral`, for the same export reason as the rest
+   * of this block.
+   */
+  riskChip: {
+    Medium: { fill: '#FDF3DC', stroke: '#9A6200', text: '#9A6200' },
+    High: { fill: '#FBE9E6', stroke: '#D26153', text: '#B4473A' },
+    Override: { fill: '#A4161A', stroke: '#A4161A', text: '#FFFFFF' },
+  },
   surface: '#FFFFFF',
 } as const
 

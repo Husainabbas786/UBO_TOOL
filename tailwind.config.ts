@@ -5,6 +5,7 @@ import {
   layout,
   neutral,
   radius,
+  risk,
   state,
   table,
   tints,
@@ -47,6 +48,8 @@ export default {
         uboTint: state.uboTint,
         gapTint: state.gapTint,
         infoTint: state.infoTint,
+        riskMedium: { DEFAULT: risk.riskMedium, tint: risk.riskMediumTint },
+        riskOverride: risk.riskOverride,
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],

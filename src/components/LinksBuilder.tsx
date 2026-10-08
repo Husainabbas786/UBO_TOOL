@@ -1,5 +1,6 @@
 import { MAX_LINKS, type EntityKind, type ValidationIssue } from '../engine'
 import type { LinkRowState } from '../lib/rows'
+import type { CountryMap } from '../risk/jurisdiction'
 import { CompanyTotals, type CompanyTotal } from './CompanyTotals'
 import { LinkRow } from './LinkRow'
 import { Button } from './ui'
@@ -17,6 +18,8 @@ interface LinksBuilderProps {
   entityPlaceholder: string
   /** The resolved legal type of each row's shareholder, keyed by row id. */
   ownerKinds: Map<string, EntityKind>
+  countries: CountryMap
+  onChangeCountry: (partyName: string, country: string) => void
   onChangeRow: (row: LinkRowState) => void
   onChangeOwnerKind: (row: LinkRowState, kind: EntityKind) => void
   onRemoveRow: (id: string) => void
@@ -31,6 +34,8 @@ export function LinksBuilder({
   partyIssues,
   entityPlaceholder,
   ownerKinds,
+  countries,
+  onChangeCountry,
   onChangeRow,
   onChangeOwnerKind,
   onRemoveRow,
@@ -51,6 +56,8 @@ export function LinksBuilder({
             entityPlaceholder={entityPlaceholder}
             ownerKind={ownerKinds.get(row.id) ?? 'company'}
             canRemove={rows.length > 1}
+            countries={countries}
+            onChangeCountry={onChangeCountry}
             onChange={onChangeRow}
             onChangeOwnerKind={(kind) => onChangeOwnerKind(row, kind)}
             onRemove={() => onRemoveRow(row.id)}

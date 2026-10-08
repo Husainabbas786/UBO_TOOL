@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { DESIGNATIONS, type Designation } from '../engine'
+import { DESIGNATIONS, toKey, type Designation } from '../engine'
+import type { CountryMap } from '../risk/jurisdiction'
+import { CountryPicker } from './CountryPicker'
 import type { ManagementRowState } from '../lib/rows'
 import { isManagementRowDirty } from '../lib/rows'
 import { Button, TextInput } from './ui'
@@ -8,6 +10,9 @@ interface ManagementProps {
   rows: ManagementRowState[]
   /** The company these officers belong to, named in the prompt. */
   targetName: string | null
+  /** Each party's country, keyed by normalised name — shared with the ownership rows. */
+  countries: CountryMap
+  onChangeCountry: (partyName: string, country: string) => void
   onChange: (row: ManagementRowState) => void
   onRemove: (id: string) => void
   onAdd: () => void
@@ -22,7 +27,15 @@ interface ManagementProps {
  * people are recorded and displayed, and the section says so before it asks
  * for anything.
  */
-export function Management({ rows, targetName, onChange, onRemove, onAdd }: ManagementProps) {
+export function Management({
+  rows,
+  targetName,
+  countries,
+  onChangeCountry,
+  onChange,
+  onRemove,
+  onAdd,
+}: ManagementProps) {
   const used = rows.some(isManagementRowDirty)
   const [open, setOpen] = useState(false)
   /*
@@ -93,6 +106,14 @@ export function Management({ rows, targetName, onChange, onRemove, onAdd }: Mana
                   ))}
                 </select>
               </div>
+
+              <CountryPicker
+                value={countries.get(toKey(row.name)) ?? ''}
+                onChange={(picked) => onChangeCountry(row.name, picked)}
+                placeholder="Nationality"
+                ariaLabel={`Nationality, management row ${index + 1}`}
+                disabled={toKey(row.name) === ''}
+              />
 
               <Button
                 variant="danger"

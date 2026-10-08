@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { formatPercent, type CalculationResult } from '../../engine'
+import { countryRiskOf, type CountryMap } from '../../risk/jurisdiction'
+import { RiskChip } from '../RiskChip'
 import { Button } from '../ui'
 
 /**
@@ -39,7 +41,13 @@ async function copyText(text: string): Promise<boolean> {
  * adverse-media checks run against everyone named, whatever they hold, so no
  * threshold is applied here and individuals are listed alongside companies.
  */
-export function IntermediariesTable({ result }: { result: CalculationResult }) {
+export function IntermediariesTable({
+  result,
+  countries,
+}: {
+  result: CalculationResult
+  countries: CountryMap
+}) {
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle')
 
   if (result.screening.length === 0) {
@@ -59,26 +67,35 @@ export function IntermediariesTable({ result }: { result: CalculationResult }) {
   return (
     <div className="space-y-3">
       <div data-export-scroll className="overflow-x-auto">
-        <table className="w-full min-w-[24rem] border-collapse text-body">
+        <table className="w-full min-w-[36rem] border-collapse text-body">
           <thead>
             <tr className="border-b border-line text-left text-h4 font-medium text-navy">
               <th className="h-row pr-4 align-middle font-medium">Party</th>
               <th className="h-row pr-4 align-middle font-medium">Type</th>
+              <th className="h-row pr-4 align-middle font-medium">Country</th>
+              <th className="h-row pr-4 align-middle font-medium">Risk</th>
               <th className="h-row text-right align-middle font-medium">Effective % of the Meydan FZ company</th>
             </tr>
           </thead>
           <tbody>
-            {result.screening.map((party) => (
-              <tr key={party.key} className="border-b border-line last:border-0">
-                <td className="h-row pr-4 align-middle font-semibold text-ink">{party.name}</td>
-                <td className="h-row pr-4 align-middle text-muted">
-                  {party.type === 'company' ? 'Company' : 'Individual'}
-                </td>
-                <td className="h-row text-right align-middle font-semibold tabular-nums text-ink">
-                  {formatPercent(party.effectivePercent)}%
-                </td>
-              </tr>
-            ))}
+            {result.screening.map((party) => {
+              const place = countryRiskOf(countries, party.key)
+              return (
+                <tr key={party.key} className="border-b border-line last:border-0">
+                  <td className="h-row pr-4 align-middle font-semibold text-ink">{party.name}</td>
+                  <td className="h-row pr-4 align-middle text-muted">
+                    {party.type === 'company' ? 'Company' : 'Individual'}
+                  </td>
+                  <td className="h-row pr-4 align-middle text-ink">{place.country ?? ''}</td>
+                  <td className="h-row pr-4 align-middle">
+                    <RiskChip rating={place.risk} />
+                  </td>
+                  <td className="h-row text-right align-middle font-semibold tabular-nums text-ink">
+                    {formatPercent(party.effectivePercent)}%
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

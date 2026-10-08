@@ -1,17 +1,52 @@
 import type { PartyNode } from '../engine'
+import { CountryPicker } from './CountryPicker'
 import { FieldLabel, Select } from './ui'
 
 interface TargetSelectProps {
   candidates: PartyNode[]
   value: string | null
   onChange: (key: string) => void
+  /** The Meydan FZ company's country of incorporation — UAE unless changed. */
+  country: string
+  onChangeCountry: (country: string) => void
+}
+
+/**
+ * Where the Meydan FZ company is incorporated. It defaults to the UAE, which is
+ * nearly always right, but stays editable and clearable like any other party's.
+ */
+function TargetCountry({
+  country,
+  onChange,
+}: {
+  country: string
+  onChange: (country: string) => void
+}) {
+  return (
+    <div className="mt-4">
+      <FieldLabel>Country of incorporation</FieldLabel>
+      <CountryPicker
+        value={country}
+        onChange={onChange}
+        placeholder="Country of incorporation"
+        ariaLabel="Meydan FZ company country of incorporation"
+        className="w-[16rem]"
+      />
+    </div>
+  )
 }
 
 /**
  * The Meydan FZ company being analysed is the company that owns nothing. Plain
  * text when there is exactly one, a dropdown when the structure is ambiguous.
  */
-export function TargetSelect({ candidates, value, onChange }: TargetSelectProps) {
+export function TargetSelect({
+  candidates,
+  value,
+  onChange,
+  country,
+  onChangeCountry,
+}: TargetSelectProps) {
   if (candidates.length === 0) {
     return (
       <p className="text-body text-muted">
@@ -32,6 +67,7 @@ export function TargetSelect({ candidates, value, onChange }: TargetSelectProps)
           The Meydan FZ company being analysed, auto-detected as the company that is owned but does
           not own anything else.
         </p>
+        <TargetCountry country={country} onChange={onChangeCountry} />
       </div>
     )
   }
@@ -50,6 +86,7 @@ export function TargetSelect({ candidates, value, onChange }: TargetSelectProps)
         {candidates.length} companies are owned but own nothing themselves. Pick the Meydan FZ
         company being analysed.
       </p>
+      <TargetCountry country={country} onChange={onChangeCountry} />
     </div>
   )
 }
