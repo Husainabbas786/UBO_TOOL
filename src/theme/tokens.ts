@@ -199,6 +199,10 @@ export const chart = {
    */
   riskChip: {
     Medium: { fill: '#FDF3DC', stroke: '#9A6200', text: '#9A6200' },
+    /*
+     * Coral border on the coral tint. The text is coral darkened one step:
+     * plain #D26153 on its own tint is about 3.3:1, too faint at chip size.
+     */
     High: { fill: '#FBE9E6', stroke: '#D26153', text: '#B4473A' },
     Override: { fill: '#A4161A', stroke: '#A4161A', text: '#FFFFFF' },
   },
