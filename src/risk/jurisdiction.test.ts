@@ -175,6 +175,38 @@ describe('jurisdictionRisk', () => {
     expect(jurisdictionRisk(run(), COUNTRIES).missing).toEqual(['Li Wei'])
   })
 
+  describe('the untouched UAE default on the Meydan FZ company', () => {
+    const example = calculate(SAMPLE_LINKS, { targetKey: 'abc ltd', threshold: 25 })
+    const defaulted: CountryMap = new Map([['abc ltd', 'United Arab Emirates']])
+
+    it('does not trigger the footnote — Load example shows none', () => {
+      expect(
+        jurisdictionRisk(example, defaulted, { targetCountryIsDefault: true }).missing,
+      ).toEqual([])
+    })
+
+    it('triggers it once the agent enters a country for anybody else', () => {
+      const one = new Map(defaulted).set('husain', 'Panama')
+      expect(
+        jurisdictionRisk(example, one, { targetCountryIsDefault: true }).missing,
+      ).toEqual(['Masood', 'XYZ Ltd', 'Dinesh'])
+    })
+
+    it('counts the target once the agent has moved it off the default', () => {
+      const edited: CountryMap = new Map([['abc ltd', 'Panama']])
+      expect(
+        jurisdictionRisk(example, edited, { targetCountryIsDefault: false }).missing.sort(),
+      ).toEqual(['Dinesh', 'Husain', 'Masood', 'XYZ Ltd'])
+    })
+
+    it('counts a target cleared by the agent as having no country', () => {
+      const one: CountryMap = new Map([['husain', 'Panama']])
+      expect(
+        jurisdictionRisk(example, one, { targetCountryIsDefault: false }).missing,
+      ).toContain('ABC LTD')
+    })
+  })
+
   it('says nothing when nobody has a country, or when everybody does', () => {
     expect(jurisdictionRisk(run(), new Map())).toEqual({ tiers: [], missing: [] })
     const all = new Map(COUNTRIES).set('li wei', 'China')

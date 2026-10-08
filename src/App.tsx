@@ -37,6 +37,13 @@ import { ThresholdSelect } from './components/ThresholdSelect'
 import { Header } from './components/Header'
 import { ResultsPanel } from './components/results/ResultsPanel'
 import { DEFAULT_TARGET_COUNTRY } from './risk/jurisdiction'
+import {
+  countrySlots,
+  reconcileCountries,
+  resolveCountries,
+  setPartyCountry,
+  type CountryEntries,
+} from './lib/countries'
 import { Button, Card } from './components/ui'
 
 export default function App() {
@@ -48,14 +55,16 @@ export default function App() {
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [engineError, setEngineError] = useState<string | null>(null)
   /**
-   * Each party's country, keyed by normalised name. Kept apart from the rows —
-   * a country belongs to a party, not to one of its shareholdings — and apart
-   * from the calculation, which never sees it. '' records a deliberate clear,
-   * so the Meydan FZ company's UAE default does not come back.
+   * Each party's country, held per field that names them (see lib/countries)
+   * and kept apart from the rows, so the calculation never sees it.
    */
-  const [countryEntries, setCountryEntries] = useState<ReadonlyMap<string, string>>(
-    () => new Map(),
-  )
+  const [countryEntries, setCountryEntries] = useState<CountryEntries>(() => new Map())
+  /**
+   * The Meydan FZ company's country. Null until the agent touches it, which is
+   * what tells the untouched UAE default apart from a country somebody chose.
+   * '' records a deliberate clear.
+   */
+  const [targetCountry, setTargetCountry] = useState<string | null>(null)
 
   const graph = useMemo(() => buildGraph(rows), [rows])
   /** Only the links the agent has actually started; a blank one is ignored. */
@@ -91,19 +100,43 @@ export default function App() {
       ? chosenTargetKey
       : defaultTargetKey(graph)
 
+  const slots = useMemo(
+    () => countrySlots(rows, managementRows, ownerKinds),
+    [rows, managementRows, ownerKinds],
+  )
+  /*
+   * Renames, removals and new rows naming an existing party are folded in on
+   * every edit. Pure, so the page reads the reconciled entries straight away and
+   * the effect only stores them; it returns the same map when nothing changed.
+   */
+  const reconciled = useMemo(
+    () => reconcileCountries(slots, countryEntries),
+    [slots, countryEntries],
+  )
+  useEffect(() => {
+    if (reconciled !== countryEntries) setCountryEntries(reconciled)
+  }, [reconciled, countryEntries])
+
   /** The countries to show: everything entered, plus the target's UAE default. */
   const countries = useMemo(() => {
-    const resolved = new Map<string, string>()
-    for (const [key, country] of countryEntries) if (country !== '') resolved.set(key, country)
-    if (targetKey !== null && !countryEntries.has(targetKey)) {
-      resolved.set(targetKey, DEFAULT_TARGET_COUNTRY)
+    const resolved = resolveCountries(slots, reconciled)
+    if (targetKey !== null) {
+      const country = targetCountry ?? DEFAULT_TARGET_COUNTRY
+      if (country === '') resolved.delete(targetKey)
+      else resolved.set(targetKey, country)
     }
     return resolved
-  }, [countryEntries, targetKey])
+  }, [slots, reconciled, targetKey, targetCountry])
 
-  const setCountry = (key: string, country: string) => {
+  /** The agent moved the Meydan FZ company off its UAE default. */
+  const targetCountryEdited = targetCountry !== null && targetCountry !== DEFAULT_TARGET_COUNTRY
+
+  const setCountry = (name: string, country: string) => {
+    const key = toKey(name)
     if (key === '') return
-    setCountryEntries((current) => new Map(current).set(key, country))
+    setCountryEntries((current) =>
+      setPartyCountry(slots, reconcileCountries(slots, current), key, country),
+    )
   }
 
   // Validation needs the target: the company being analysed holds 100% of
@@ -284,6 +317,7 @@ export default function App() {
 
   const handleStartOver = () => {
     setCountryEntries(new Map())
+    setTargetCountry(null)
     setRows([blankRow()])
     setRelatedRows([])
     setManagementRows([])
@@ -295,6 +329,7 @@ export default function App() {
 
   const handleLoadExample = () => {
     setCountryEntries(new Map())
+    setTargetCountry(null)
     setRows(exampleRows())
     setRelatedRows([])
     setManagementRows([])
@@ -323,7 +358,7 @@ export default function App() {
             entityPlaceholder={entityPlaceholder}
             ownerKinds={ownerKinds}
             countries={countries}
-            onChangeCountry={(name, country) => setCountry(toKey(name), country)}
+            onChangeCountry={setCountry}
             onChangeRow={handleChangeRow}
             onChangeOwnerKind={handleChangeOwnerKind}
             onRemoveRow={(id) => setRows((current) => current.filter((row) => row.id !== id))}
@@ -355,7 +390,7 @@ export default function App() {
             rows={managementRows}
             targetName={targetKey ? (graph.nodeByKey.get(targetKey)?.name ?? null) : null}
             countries={countries}
-            onChangeCountry={(name, country) => setCountry(toKey(name), country)}
+            onChangeCountry={setCountry}
             onChange={(updated) =>
               setManagementRows((current) =>
                 current.map((row) => (row.id === updated.id ? updated : row)),
@@ -378,7 +413,7 @@ export default function App() {
               value={targetKey}
               onChange={setChosenTargetKey}
               country={targetKey ? (countries.get(targetKey) ?? '') : ''}
-              onChangeCountry={(country) => targetKey && setCountry(targetKey, country)}
+              onChangeCountry={setTargetCountry}
             />
           </Card>
         </div>
@@ -419,7 +454,11 @@ export default function App() {
         {/* The results run wider than the input column so a deep chart fits. */}
         {result ? (
           <div className="mx-auto mt-8 max-w-results px-6">
-            <ResultsPanel result={result} countries={countries} />
+            <ResultsPanel
+              result={result}
+              countries={countries}
+              targetCountryIsDefault={!targetCountryEdited}
+            />
           </div>
         ) : null}
       </main>

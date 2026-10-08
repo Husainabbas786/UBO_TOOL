@@ -63,14 +63,19 @@ export interface JurisdictionRisk {
   /** Medium and above, highest tier first; empty tiers are left out. */
   tiers: Array<{ rating: Exclude<RiskRating, 'Low'>; parties: JurisdictionLine[] }>
   /**
-   * Parties with no country, named only when somebody else does have one —
-   * when nobody has a country, the feature simply was not used.
+   * Parties with no country, named only when the agent has actually entered a
+   * country for somebody — when nobody has, the feature simply was not used.
+   * The Meydan FZ company's untouched UAE default is not an entry.
    */
   missing: string[]
 }
 
 /** The Summary's "Jurisdiction risk" block, worked out from the result. */
-export function jurisdictionRisk(result: CalculationResult, countries: CountryMap): JurisdictionRisk {
+export function jurisdictionRisk(
+  result: CalculationResult,
+  countries: CountryMap,
+  options: { targetCountryIsDefault?: boolean } = {},
+): JurisdictionRisk {
   const parties = partiesOf(result).map((party) => ({
     ...party,
     ...countryRiskOf(countries, party.key),
@@ -85,11 +90,13 @@ export function jurisdictionRisk(result: CalculationResult, countries: CountryMa
     if (lines.length > 0) tiers.push({ rating, parties: lines })
   }
 
-  const withCountry = parties.filter((party) => party.country !== null)
-  const missing =
-    withCountry.length > 0 && withCountry.length < parties.length
-      ? parties.filter((party) => party.country === null).map((party) => party.name)
-      : []
+  const entered = parties.some(
+    (party) =>
+      party.country !== null &&
+      !(options.targetCountryIsDefault === true && party.key === result.target.key),
+  )
+  const without = parties.filter((party) => party.country === null)
+  const missing = entered ? without.map((party) => party.name) : []
 
   return { tiers, missing }
 }

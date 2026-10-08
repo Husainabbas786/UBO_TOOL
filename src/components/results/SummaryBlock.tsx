@@ -161,13 +161,15 @@ function describeGroup(group: RelatedPartyGroup, threshold: number): string {
 export function SummaryBlock({
   result,
   countries,
+  targetCountryIsDefault,
 }: {
   result: CalculationResult
   countries: CountryMap
+  targetCountryIsDefault: boolean
 }) {
   const count = result.ubos.length
   const groups = result.relatedGroups
-  const jurisdiction = jurisdictionRisk(result, countries)
+  const jurisdiction = jurisdictionRisk(result, countries, { targetCountryIsDefault })
 
   return (
     <div className="space-y-4">
