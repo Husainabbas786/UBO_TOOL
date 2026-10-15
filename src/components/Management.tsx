@@ -5,7 +5,8 @@ import { BlacklistWarning } from './BlacklistWarning'
 import { CountryPicker } from './CountryPicker'
 import type { ManagementRowState } from '../lib/rows'
 import { isManagementRowDirty } from '../lib/rows'
-import { Button, TextInput } from './ui'
+import { countryPlaceholder, countryRequiredMessage } from '../lib/countries'
+import { Button, ErrorText, TextInput } from './ui'
 
 interface ManagementProps {
   rows: ManagementRowState[]
@@ -75,7 +76,11 @@ export function Management({
       </p>
 
       <div className="space-y-2">
-        {rows.map((row, index) => (
+        {rows.map((row, index) => {
+          // Named, so a party: a nationality is required, as on every row.
+          const lacksCountry =
+            toKey(row.name) !== '' && (countries.get(toKey(row.name)) ?? '') === ''
+          return (
           <div key={row.id} className="rounded-card border border-line bg-white px-3 py-3">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
               <span className="w-5 shrink-0 text-small font-medium tabular-nums text-muted">
@@ -111,10 +116,11 @@ export function Management({
               <CountryPicker
                 value={countries.get(toKey(row.name)) ?? ''}
                 onChange={(picked) => onChangeCountry(row.name, picked)}
-                placeholder="Nationality"
+                placeholder={countryPlaceholder('individual')}
                 ariaLabel={`Nationality, management row ${index + 1}`}
                 partyType="individual"
                 disabled={toKey(row.name) === ''}
+                invalid={lacksCountry}
               />
 
               <Button
@@ -127,13 +133,19 @@ export function Management({
                 ×
               </Button>
             </div>
+            {lacksCountry ? (
+              <div className="mt-2 pl-[1.875rem]">
+                <ErrorText>{countryRequiredMessage('individual')}</ErrorText>
+              </div>
+            ) : null}
             <BlacklistWarning
               country={countries.get(toKey(row.name))}
               partyType="individual"
               className="mt-2 pl-[1.875rem]"
             />
           </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

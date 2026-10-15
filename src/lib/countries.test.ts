@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { EntityKind } from '../engine'
+import { calculate, formatPercent, type EntityKind } from '../engine'
 import {
+  countryPlaceholder,
+  countryRequiredMessage,
   countrySlots,
+  exampleCountryEntries,
+  missingCountries,
   reconcileCountries,
   resolveCountries,
   setPartyCountry,
@@ -11,6 +15,7 @@ import {
   blankManagementRow,
   blankRoleHolder,
   blankRow,
+  exampleRows,
   withOwnerKind,
   type LinkRowState,
   type ManagementRowState,
@@ -144,5 +149,158 @@ describe('country per party, held per field', () => {
     const slots = countrySlots(rows, [], NO_KINDS)
     const entries = reconcileCountries(slots, setPartyCountry(slots, new Map(), 'a', 'Panama'))
     expect(reconcileCountries(slots, entries)).toBe(entries)
+  })
+})
+
+describe('a country is required for every party', () => {
+  const TARGET = { key: 'falcon trading fzco', name: 'Falcon Trading FZCO' }
+  const UAE = 'United Arab Emirates'
+
+  /** What the App checks: entered countries, plus the target's own picker. */
+  function blockers(
+    rows: LinkRowState[],
+    management: ManagementRowState[],
+    entries: CountryEntries,
+    kinds: ReadonlyMap<string, EntityKind> = NO_KINDS,
+    targetCountry = UAE,
+  ) {
+    const slots = countrySlots(rows, management, kinds)
+    const countries = resolveCountries(slots, reconcileCountries(slots, entries))
+    if (targetCountry !== '') countries.set(TARGET.key, targetCountry)
+    return missingCountries(slots, countries, TARGET)
+  }
+
+  /** Every named place set to the UAE, then the given parties cleared. */
+  function allSetExcept(
+    rows: LinkRowState[],
+    management: ManagementRowState[],
+    kinds: ReadonlyMap<string, EntityKind>,
+    ...missing: string[]
+  ): CountryEntries {
+    const slots = countrySlots(rows, management, kinds)
+    let entries: CountryEntries = new Map()
+    for (const slot of slots) {
+      if (slot.key !== '' && !missing.includes(slot.key)) {
+        entries = setPartyCountry(slots, entries, slot.key, UAE)
+      }
+    }
+    return entries
+  }
+
+  it('blocks on a shareholder with no country, naming the row, party and field', () => {
+    const rows = [
+      { ...row('XYZ Ltd'), ownerType: 'company' as const },
+      row('Husain'),
+      row('Dinesh'),
+    ]
+    expect(blockers(rows, [], allSetExcept(rows, [], NO_KINDS, 'husain'))).toEqual([
+      "Row 2: select Husain's nationality.",
+    ])
+    expect(blockers(rows, [], allSetExcept(rows, [], NO_KINDS, 'xyz ltd'))).toEqual([
+      "Row 1: select XYZ Ltd's country of incorporation.",
+    ])
+  })
+
+  it('blocks on a nominator with no country', () => {
+    const nominee: LinkRowState = {
+      ...row('Gulf Nominees Ltd'),
+      ownerType: 'company',
+      ownerIsNominee: true,
+      nominatorName: 'Cedar Holdings',
+      nominatorType: 'company',
+    }
+    const rows = [row('Masood'), nominee]
+    expect(blockers(rows, [], allSetExcept(rows, [], NO_KINDS, 'cedar holdings'))).toEqual([
+      "Nominator on row 2: select Cedar Holdings's country of incorporation.",
+    ])
+  })
+
+  it('blocks on a person behind a trust with no country', () => {
+    const trust = withOwnerKind({ ...row('Smith Family Trust'), ownerType: 'company' }, 'trust')
+    const rows = [{ ...trust, roleHolders: [{ ...blankRoleHolder(), name: 'Ahmad Zai' }] }]
+    const kinds = new Map<string, EntityKind>([[trust.id, 'trust']])
+    expect(blockers(rows, [], allSetExcept(rows, [], kinds, 'ahmad zai'), kinds)).toEqual([
+      "Person 1 on row 1: select Ahmad Zai's nationality.",
+    ])
+  })
+
+  it('blocks on a management entry with no country', () => {
+    const rows = [row('Masood')]
+    const management = [
+      { ...blankManagementRow(), name: 'Althaf' },
+      { ...blankManagementRow(), name: 'Shafeer' },
+    ]
+    expect(
+      blockers(rows, management, allSetExcept(rows, management, NO_KINDS, 'shafeer')),
+    ).toEqual(["Management 2: select Shafeer's nationality."])
+  })
+
+  it("blocks once the Meydan FZ company's UAE default is cleared", () => {
+    const rows = [row('Masood')]
+    const entries = allSetExcept(rows, [], NO_KINDS)
+    expect(blockers(rows, [], entries)).toEqual([])
+    expect(blockers(rows, [], entries, NO_KINDS, '')).toEqual([
+      "Meydan FZ company: select Falcon Trading FZCO's country of incorporation.",
+    ])
+  })
+
+  it('unblocks once every party has a country', () => {
+    const rows = [row('Masood'), row('Husain')]
+    const management = [{ ...blankManagementRow(), name: 'Shafeer' }]
+    expect(blockers(rows, management, new Map())).toHaveLength(3)
+    expect(blockers(rows, management, allSetExcept(rows, management, NO_KINDS))).toEqual([])
+  })
+
+  it('takes one entry for a party named on two rows, and names them once', () => {
+    const rows = [row('Husain'), row('Husain', 'XYZ Ltd')]
+    expect(blockers(rows, [], new Map())).toEqual(["Row 1: select Husain's nationality."])
+
+    const p = page(rows)
+    p.setCountry('Husain', 'India')
+    const slots = countrySlots(rows, [], NO_KINDS)
+    expect(
+      missingCountries(slots, new Map(p.countries()).set(TARGET.key, UAE), TARGET),
+    ).toEqual([])
+  })
+
+  it('counts a deliberate clear as no country', () => {
+    const p = page([row('Husain')])
+    p.setCountry('Husain', 'India')
+    p.setCountry('Husain', '')
+    const slots = countrySlots(p.rows, [], NO_KINDS)
+    expect(missingCountries(slots, p.countries(), null)).toEqual([
+      "Row 1: select Husain's nationality.",
+    ])
+  })
+
+  it('leaves an unnamed field to the row’s own errors', () => {
+    const management = [blankManagementRow()]
+    expect(blockers([blankRow()], management, new Map())).toEqual([])
+  })
+
+  it('asks for the right field, marked as required', () => {
+    expect(countryPlaceholder('individual')).toBe('Nationality *')
+    expect(countryPlaceholder('company')).toBe('Country of incorporation *')
+    expect(countryRequiredMessage('individual')).toBe('Select a nationality.')
+    expect(countryRequiredMessage('company')).toBe('Select the country of incorporation.')
+  })
+})
+
+describe('Load example', () => {
+  it('arrives with a country for every party and calculates the same figures', () => {
+    const rows = exampleRows()
+    const entries = exampleCountryEntries(rows, 'United Arab Emirates')
+    const slots = countrySlots(rows, [], NO_KINDS)
+    const countries = resolveCountries(slots, reconcileCountries(slots, entries))
+    expect([...countries.keys()].sort()).toEqual(['dinesh', 'husain', 'masood', 'xyz ltd'])
+    countries.set('abc ltd', 'United Arab Emirates')
+    expect(missingCountries(slots, countries, { key: 'abc ltd', name: 'ABC LTD' })).toEqual([])
+
+    const result = calculate(rows, { targetKey: 'abc ltd', threshold: 25 })
+    expect(
+      result.ubos.map((ubo) => `${ubo.name} ${formatPercent(ubo.totalPercent)}`).sort(),
+    ).toEqual(['Dinesh 37.50', 'Husain 37.50', 'Masood 25.00'])
+    expect(result.entityCount).toBe(5)
+    expect(result.pathCount).toBe(3)
   })
 })

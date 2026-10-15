@@ -1,7 +1,8 @@
 import type { PartyNode } from '../engine'
 import { BlacklistWarning } from './BlacklistWarning'
 import { CountryPicker } from './CountryPicker'
-import { FieldLabel, Select } from './ui'
+import { countryPlaceholder, countryRequiredMessage } from '../lib/countries'
+import { ErrorText, FieldLabel, Select } from './ui'
 
 interface TargetSelectProps {
   candidates: PartyNode[]
@@ -14,7 +15,8 @@ interface TargetSelectProps {
 
 /**
  * Where the Meydan FZ company is incorporated. It defaults to the UAE, which is
- * nearly always right, but stays editable and clearable like any other party's.
+ * nearly always right, but stays editable like any other party's — and, like
+ * any other party's, cannot be left blank: clearing it blocks Calculate.
  */
 function TargetCountry({
   country,
@@ -29,11 +31,17 @@ function TargetCountry({
       <CountryPicker
         value={country}
         onChange={onChange}
-        placeholder="Country of incorporation"
+        placeholder={countryPlaceholder('company')}
         ariaLabel="Meydan FZ company country of incorporation"
         partyType="company"
+        invalid={country === ''}
         className="w-[16rem]"
       />
+      {country === '' ? (
+        <div className="mt-1.5">
+          <ErrorText>{countryRequiredMessage('company')}</ErrorText>
+        </div>
+      ) : null}
       <BlacklistWarning country={country} partyType="company" className="mt-1.5" />
     </div>
   )

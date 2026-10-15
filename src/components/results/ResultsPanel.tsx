@@ -15,13 +15,10 @@ import { SummaryBlock } from './SummaryBlock'
 export function ResultsPanel({
   result,
   countries,
-  targetCountryIsDefault,
 }: {
   result: CalculationResult
   /** Display only — read live, so a country edit shows without recalculating. */
   countries: CountryMap
-  /** The Meydan FZ company still shows the UAE default nobody chose. */
-  targetCountryIsDefault: boolean
 }) {
   const chartRef = useRef<HTMLElement>(null)
   const pathsRef = useRef<HTMLElement>(null)
@@ -66,11 +63,7 @@ export function ResultsPanel({
           />
         }
       >
-        <SummaryBlock
-          result={result}
-          countries={countries}
-          targetCountryIsDefault={targetCountryIsDefault}
-        />
+        <SummaryBlock result={result} countries={countries} />
       </Card>
 
       <Card

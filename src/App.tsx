@@ -39,6 +39,8 @@ import { ResultsPanel } from './components/results/ResultsPanel'
 import { DEFAULT_TARGET_COUNTRY } from './risk/jurisdiction'
 import {
   countrySlots,
+  exampleCountryEntries,
+  missingCountries,
   reconcileCountries,
   resolveCountries,
   setPartyCountry,
@@ -59,12 +61,8 @@ export default function App() {
    * and kept apart from the rows, so the calculation never sees it.
    */
   const [countryEntries, setCountryEntries] = useState<CountryEntries>(() => new Map())
-  /**
-   * The Meydan FZ company's country. Null until the agent touches it, which is
-   * what tells the untouched UAE default apart from a country somebody chose.
-   * '' records a deliberate clear.
-   */
-  const [targetCountry, setTargetCountry] = useState<string | null>(null)
+  /** The Meydan FZ company's country: UAE unless changed. '' is a deliberate clear. */
+  const [targetCountry, setTargetCountry] = useState<string>(DEFAULT_TARGET_COUNTRY)
 
   const graph = useMemo(() => buildGraph(rows), [rows])
   /** Only the links the agent has actually started; a blank one is ignored. */
@@ -117,19 +115,22 @@ export default function App() {
     if (reconciled !== countryEntries) setCountryEntries(reconciled)
   }, [reconciled, countryEntries])
 
-  /** The countries to show: everything entered, plus the target's UAE default. */
+  /** The countries to show: everything entered, plus the target's. */
   const countries = useMemo(() => {
     const resolved = resolveCountries(slots, reconciled)
     if (targetKey !== null) {
-      const country = targetCountry ?? DEFAULT_TARGET_COUNTRY
-      if (country === '') resolved.delete(targetKey)
-      else resolved.set(targetKey, country)
+      if (targetCountry === '') resolved.delete(targetKey)
+      else resolved.set(targetKey, targetCountry)
     }
     return resolved
   }, [slots, reconciled, targetKey, targetCountry])
 
-  /** The agent moved the Meydan FZ company off its UAE default. */
-  const targetCountryEdited = targetCountry !== null && targetCountry !== DEFAULT_TARGET_COUNTRY
+  /** Every named party needs a country before Calculate will run. */
+  const countryReasons = missingCountries(
+    slots,
+    countries,
+    targetKey ? { key: targetKey, name: graph.nodeByKey.get(targetKey)?.name ?? targetKey } : null,
+  )
 
   const setCountry = (name: string, country: string) => {
     const key = toKey(name)
@@ -183,8 +184,10 @@ export default function App() {
     ok: Math.abs(company.total - 100) <= TOTAL_TOLERANCE + 1e-9,
   }))
 
-  const reasons = anyRowDirty ? blockingReasons(validation.errors, rows, incompleteRowIds) : []
-  const canCalculate = validation.ok && targetKey !== null
+  const reasons = anyRowDirty
+    ? [...blockingReasons(validation.errors, rows, incompleteRowIds), ...countryReasons]
+    : []
+  const canCalculate = validation.ok && targetKey !== null && countryReasons.length === 0
 
   /*
    * Guide the agent through one company at a time.
@@ -317,7 +320,7 @@ export default function App() {
 
   const handleStartOver = () => {
     setCountryEntries(new Map())
-    setTargetCountry(null)
+    setTargetCountry(DEFAULT_TARGET_COUNTRY)
     setRows([blankRow()])
     setRelatedRows([])
     setManagementRows([])
@@ -327,10 +330,12 @@ export default function App() {
     setEngineError(null)
   }
 
+  // Every sample party arrives with a country, so the example calculates as is.
   const handleLoadExample = () => {
-    setCountryEntries(new Map())
-    setTargetCountry(null)
-    setRows(exampleRows())
+    const example = exampleRows()
+    setCountryEntries(exampleCountryEntries(example, DEFAULT_TARGET_COUNTRY))
+    setTargetCountry(DEFAULT_TARGET_COUNTRY)
+    setRows(example)
     setRelatedRows([])
     setManagementRows([])
     setThreshold(DEFAULT_THRESHOLD)
@@ -454,11 +459,7 @@ export default function App() {
         {/* The results run wider than the input column so a deep chart fits. */}
         {result ? (
           <div className="mx-auto mt-8 max-w-results px-6">
-            <ResultsPanel
-              result={result}
-              countries={countries}
-              targetCountryIsDefault={!targetCountryEdited}
-            />
+            <ResultsPanel result={result} countries={countries} />
           </div>
         ) : null}
       </main>

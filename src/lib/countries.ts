@@ -1,4 +1,4 @@
-import { isNonCommercial, toKey, type EntityKind } from '../engine'
+import { isNonCommercial, toKey, type EntityKind, type PartyType } from '../engine'
 import type { LinkRowState, ManagementRowState } from './rows'
 
 /**
@@ -19,6 +19,12 @@ export interface CountrySlot {
   id: string
   /** The party currently named in that field ('' when blank). */
   key: string
+  /** The name as typed, for messages. */
+  name: string
+  /** Decides whether the field asks for a nationality or a country of incorporation. */
+  partyType: PartyType
+  /** Where the field is on the page, as the blockers list names it: "Row 3". */
+  place: string
 }
 
 export interface CountryEntry {
@@ -46,22 +52,49 @@ export function countrySlots(
   ownerKinds: ReadonlyMap<string, EntityKind>,
 ): CountrySlot[] {
   const slots: CountrySlot[] = []
-  for (const row of rows) {
-    slots.push({ id: `${row.id}:owner`, key: toKey(row.ownerName) })
+  rows.forEach((row, index) => {
+    const rowNumber = index + 1
+    slots.push({
+      id: `${row.id}:owner`,
+      key: toKey(row.ownerName),
+      name: row.ownerName.trim(),
+      partyType: row.ownerType,
+      place: `Row ${rowNumber}`,
+    })
     const isStructure =
       row.ownerType === 'company' && isNonCommercial(ownerKinds.get(row.id) ?? row.ownerKind)
     // Only fields actually on screen count: a hidden nominator or people list
     // is not a place the party is named.
     if (row.ownerIsNominee && !isStructure) {
-      slots.push({ id: `${row.id}:nominator`, key: toKey(row.nominatorName) })
+      slots.push({
+        id: `${row.id}:nominator`,
+        key: toKey(row.nominatorName),
+        name: row.nominatorName.trim(),
+        partyType: row.nominatorType,
+        place: `Nominator on row ${rowNumber}`,
+      })
     }
     if (isStructure) {
-      for (const holder of row.roleHolders) {
-        slots.push({ id: `${row.id}:holder:${holder.id}`, key: toKey(holder.name) })
-      }
+      row.roleHolders.forEach((holder, holderIndex) => {
+        slots.push({
+          id: `${row.id}:holder:${holder.id}`,
+          key: toKey(holder.name),
+          name: holder.name.trim(),
+          partyType: holder.type ?? 'individual',
+          place: `Person ${holderIndex + 1} on row ${rowNumber}`,
+        })
+      })
     }
-  }
-  for (const row of management) slots.push({ id: `mgmt:${row.id}`, key: toKey(row.name) })
+  })
+  management.forEach((row, index) => {
+    slots.push({
+      id: `mgmt:${row.id}`,
+      key: toKey(row.name),
+      name: row.name.trim(),
+      partyType: 'individual',
+      place: `Management ${index + 1}`,
+    })
+  })
   return slots
 }
 
@@ -163,4 +196,63 @@ export function reconcileCountries(
   }
 
   return changed ? next : entries
+}
+
+/** The inline error under an empty country picker. */
+export function countryRequiredMessage(partyType: PartyType): string {
+  return partyType === 'individual'
+    ? 'Select a nationality.'
+    : 'Select the country of incorporation.'
+}
+
+/** What a picker asks for; the asterisk says it cannot be left blank. */
+export function countryPlaceholder(partyType: PartyType): string {
+  return partyType === 'individual' ? 'Nationality *' : 'Country of incorporation *'
+}
+
+/**
+ * Every party needs a country before Calculate will run: a nationality for a
+ * person, a country of incorporation for anything else.
+ *
+ * Returns one line per party still without one, in page order, for the list
+ * under the disabled button. A party named in several places is listed once —
+ * one entry sets the country everywhere they appear, so one line is enough. An
+ * unnamed field is not a party yet and is left to the row's own errors.
+ *
+ * The Meydan FZ company is not typed into a field of its own, so it is passed
+ * in separately and checked last, where its picker sits on the page.
+ */
+export function missingCountries(
+  slots: CountrySlot[],
+  countries: ReadonlyMap<string, string>,
+  target: { key: string; name: string } | null,
+): string[] {
+  const reasons: string[] = []
+  const seen = new Set<string>()
+  const require = (key: string, name: string, partyType: PartyType, place: string) => {
+    if (key === '' || seen.has(key)) return
+    seen.add(key)
+    if ((countries.get(key) ?? '') !== '') return
+    const field = partyType === 'individual' ? 'nationality' : 'country of incorporation'
+    reasons.push(`${place}: select ${name}'s ${field}.`)
+  }
+  for (const slot of slots) require(slot.key, slot.name, slot.partyType, slot.place)
+  if (target) require(target.key, target.name, 'company', 'Meydan FZ company')
+  return reasons
+}
+
+/**
+ * Load example's countries: every party in the sample structure entered as a
+ * UAE party, so the example calculates now that a country is required. Kept
+ * beside the rows rather than in the engine's sample, which never carries one.
+ */
+export function exampleCountryEntries(
+  rows: LinkRowState[],
+  country: string,
+): Map<string, CountryEntry> {
+  const entries = new Map<string, CountryEntry>()
+  for (const slot of countrySlots(rows, [], new Map())) {
+    if (slot.key !== '') entries.set(slot.id, { country, adoptedFrom: null })
+  }
+  return entries
 }

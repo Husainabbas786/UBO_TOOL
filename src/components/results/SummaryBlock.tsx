@@ -162,15 +162,13 @@ function describeGroup(group: RelatedPartyGroup, threshold: number): string {
 export function SummaryBlock({
   result,
   countries,
-  targetCountryIsDefault,
 }: {
   result: CalculationResult
   countries: CountryMap
-  targetCountryIsDefault: boolean
 }) {
   const count = result.ubos.length
   const groups = result.relatedGroups
-  const jurisdiction = jurisdictionRisk(result, countries, { targetCountryIsDefault })
+  const jurisdiction = jurisdictionRisk(result, countries)
   const blacklisted = blacklistedParties(result, countries)
 
   return (
@@ -378,12 +376,6 @@ export function SummaryBlock({
             ))}
           </div>
         </div>
-      ) : null}
-
-      {jurisdiction.missing.length > 0 ? (
-        <p className="text-small text-muted">
-          Country not entered for: {jurisdiction.missing.join(', ')}.
-        </p>
       ) : null}
 
       <p className="text-small text-muted">

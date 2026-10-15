@@ -167,7 +167,7 @@ describe('blacklisted parties', () => {
     layoutChart(result, COUNTRIES)
     jurisdictionRisk(result, COUNTRIES)
     blacklistedParties(result, COUNTRIES)
-    renderToStaticMarkup(<SummaryBlock result={result} countries={COUNTRIES} targetCountryIsDefault />)
+    renderToStaticMarkup(<SummaryBlock result={result} countries={COUNTRIES} />)
     expect(JSON.stringify(result)).toBe(before)
     expect(before).toBe(JSON.stringify(run()))
   })
@@ -176,7 +176,7 @@ describe('blacklisted parties', () => {
 describe('what reaches the screen', () => {
   const result = run()
   const summary = renderToStaticMarkup(
-    <SummaryBlock result={result} countries={COUNTRIES} targetCountryIsDefault />,
+    <SummaryBlock result={result} countries={COUNTRIES} />,
   )
   const screening = renderToStaticMarkup(
     <IntermediariesTable result={result} countries={COUNTRIES} />,
@@ -199,7 +199,7 @@ describe('what reaches the screen', () => {
   it('has no banner, and no chart note, when nobody is blacklisted', () => {
     const clean: CountryMap = new Map([['reza karimi', 'Iran']])
     expect(
-      renderToStaticMarkup(<SummaryBlock result={result} countries={clean} targetCountryIsDefault />),
+      renderToStaticMarkup(<SummaryBlock result={result} countries={clean} />),
     ).not.toContain('Blacklisted parties')
     expect(renderToStaticMarkup(<OwnershipChart result={result} countries={clean} />)).not.toContain(
       'Contains blacklisted parties',

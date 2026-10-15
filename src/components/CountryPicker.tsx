@@ -14,6 +14,8 @@ interface CountryPickerProps {
   partyType: PartyType
   /** Off until the party has a name: a country belongs to a party, not a row. */
   disabled?: boolean
+  /** A named party with no country yet: drawn red, like any other required field. */
+  invalid?: boolean
   className?: string
 }
 
@@ -23,7 +25,8 @@ interface CountryPickerProps {
  * Only canonical names can be stored. Typing filters the list — by substring,
  * and by common short forms like "UAE" — but whatever is typed and not picked
  * is thrown away on blur, so a party can never end up with a country the risk
- * list does not know. Optional: blank is always fine.
+ * list does not know. Required for every named party — Calculate waits until
+ * each one has a country — but the picker itself only reports it, via `invalid`.
  */
 export function CountryPicker({
   value,
@@ -32,6 +35,7 @@ export function CountryPicker({
   ariaLabel,
   partyType,
   disabled = false,
+  invalid = false,
   className = 'w-[10rem]',
 }: CountryPickerProps) {
   const listId = useId()
@@ -120,7 +124,12 @@ export function CountryPicker({
           setOpen(true)
         }}
         onKeyDown={onKeyDown}
-        className={`w-full truncate rounded-input border border-fieldBorder bg-field py-2 pl-2.5 text-body text-ink placeholder:text-muted focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deepTeal disabled:cursor-not-allowed disabled:opacity-60 ${
+        aria-invalid={invalid || undefined}
+        className={`w-full truncate rounded-input border py-2 pl-2.5 text-body text-ink placeholder:text-muted focus:outline-none focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+          invalid
+            ? 'border-coral bg-gapTint focus-visible:ring-coral'
+            : 'border-fieldBorder bg-field focus-visible:ring-deepTeal'
+        } ${
           value !== '' && !disabled ? 'pr-7' : 'pr-2.5'
         } ${rating && rating !== 'Low' && query === null ? 'font-medium' : ''}`}
       />

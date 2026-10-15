@@ -12,6 +12,7 @@ import {
   type ValidationIssue,
 } from '../engine'
 import type { LinkRowState } from '../lib/rows'
+import { countryPlaceholder, countryRequiredMessage } from '../lib/countries'
 import {
   blankRoleHolder,
   withEntityName,
@@ -171,18 +172,25 @@ export function LinkRow({
   /*
    * A country belongs to the party, not to this row: it is read and written by
    * name, so the same person or company shows one country wherever they appear.
-   * Until a name is typed there is no party to attach it to.
+   * Until a name is typed there is no party to attach it to — and nothing to
+   * ask for, so an untouched row is never red. Once there is, it is required.
    */
+  const lacksCountry = (name: string) =>
+    toKey(name) !== '' && (countries.get(toKey(name)) ?? '') === ''
   const country = (name: string, type: PartyType, label: string) => (
     <CountryPicker
       value={countries.get(toKey(name)) ?? ''}
       onChange={(picked) => onChangeCountry(name, picked)}
-      placeholder={type === 'individual' ? 'Nationality' : 'Country of incorporation'}
+      placeholder={countryPlaceholder(type)}
       ariaLabel={label}
       partyType={type}
       disabled={toKey(name) === ''}
+      invalid={lacksCountry(name)}
     />
   )
+  const countryError = (name: string, type: PartyType) =>
+    lacksCountry(name) ? <ErrorText>{countryRequiredMessage(type)}</ErrorText> : null
+  const ownerCountryError = countryError(row.ownerName, row.ownerType)
   /** The crimson "cannot onboard" line for whoever is named in that field. */
   const warning = (name: string, type: PartyType, className = '') => (
     <BlacklistWarning
@@ -360,6 +368,9 @@ export function LinkRow({
             {row.entityName.trim() === '' ? 'the company' : row.entityName}&rsquo;s 100% total, but
             the nominator is assessed as the beneficial owner — the nominee never is.
           </p>
+          {lacksCountry(row.nominatorName) ? (
+            <div className="mt-1.5">{countryError(row.nominatorName, row.nominatorType)}</div>
+          ) : null}
           {warning(row.nominatorName, row.nominatorType, 'mt-1.5')}
         </div>
       ) : null}
@@ -471,6 +482,7 @@ export function LinkRow({
                   {holderIssues.map((issue) => (
                     <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
                   ))}
+                  {countryError(holder.name, holder.type ?? 'individual')}
                   {warning(holder.name, holder.type ?? 'individual', 'mt-1')}
                 </div>
               )
@@ -494,12 +506,17 @@ export function LinkRow({
         </div>
       ) : null}
 
-      {rowIssues.length > 0 || hint || row.ownerIsController || ownerBlacklisted ? (
+      {rowIssues.length > 0 ||
+      hint ||
+      row.ownerIsController ||
+      ownerBlacklisted ||
+      ownerCountryError ? (
         <div className="mt-2 space-y-1 pl-[1.875rem]">
           {ownerWarning}
           {rowIssues.map((issue) => (
             <ErrorText key={`${issue.code}-${issue.message}`}>{issue.message}</ErrorText>
           ))}
+          {ownerCountryError}
           {row.ownerIsController ? (
             <p className="text-small text-purple">0% is allowed for a controller.</p>
           ) : null}
